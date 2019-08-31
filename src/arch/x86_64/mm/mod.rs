@@ -8,6 +8,7 @@
 pub mod paging;
 pub mod physicalmem;
 pub mod virtualmem;
+pub mod mpk;
 
 pub use self::paging::init_page_tables;
 use core::mem;

@@ -139,6 +139,13 @@ impl PageTableEntry {
 		(self.physical_address_and_flags & PageTableEntryFlags::USER_ACCESSIBLE.bits()) != 0
 	}
 
+    /// Set pkey in the page
+    fn set_pkey(&mut self, key: u8) {
+        let tmp: usize;
+        tmp = (key as usize)& 15;
+        self.physical_address_and_flags |= tmp << 59;
+    }
+
 	/// Mark this as a valid (present) entry and set address translation and flags.
 	///
 	/// # Arguments
@@ -558,6 +565,23 @@ where
 			apic::ipi_tlb_flush();
 		}
 	}
+}
+
+pub fn set_pkeys<S: PageSize>(virtual_address: usize, count :usize, key: u8) -> i32 {
+    let range: PageIter<S>;
+    let mut entry: PageTableEntry;
+    range = get_page_range(virtual_address, count);
+    for page in range {
+       if let Some(tmp_entry) = get_page_table_entry::<BasePageSize>(page.address()) {
+           entry = tmp_entry as PageTableEntry;
+           entry.set_pkey(key);
+       }
+       else
+       {
+            panic!("No page table entry for virtual address {:#X}",virtual_address);
+       }
+    }
+    return 0;
 }
 
 pub extern "x86-interrupt" fn page_fault_handler(

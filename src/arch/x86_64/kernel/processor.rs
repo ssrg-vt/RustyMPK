@@ -47,6 +47,10 @@ static mut SUPPORTS_RDRAND: bool = false;
 static mut SUPPORTS_TSC_DEADLINE: bool = false;
 static mut SUPPORTS_X2APIC: bool = false;
 static mut SUPPORTS_XSAVE: bool = false;
+
+static mut SUPPORTS_PKU: bool = false;
+static mut SUPPORTS_OSPKE: bool = false;
+
 static mut SUPPORTS_FSGS: bool = false;
 static mut TIMESTAMP_FUNCTION: unsafe fn() -> u64 = get_timestamp_rdtsc;
 
@@ -656,7 +660,11 @@ pub fn detect_features() {
 		SUPPORTS_TSC_DEADLINE = feature_info.has_tsc_deadline();
 		SUPPORTS_X2APIC = feature_info.has_x2apic();
 		SUPPORTS_XSAVE = feature_info.has_xsave();
-		SUPPORTS_FSGS = extended_feature_info.has_fsgsbase();
+
+        SUPPORTS_PKU = extended_feature_info.has_pku();
+        SUPPORTS_OSPKE = extended_feature_info.has_ospke();
+
+        SUPPORTS_FSGS = extended_feature_info.has_fsgsbase();
 
 		if extended_function_info.has_rdtscp() {
 			TIMESTAMP_FUNCTION = get_timestamp_rdtscp;
@@ -712,7 +720,11 @@ pub fn configure() {
 		cr4.insert(Cr4::CR4_ENABLE_OS_XSAVE);
 	}
 
-	if supports_fsgs() {
+    if supports_pku() {
+		cr4.insert(Cr4::CR4_ENABLE_PROTECTION_KEY);
+    }
+
+    if supports_fsgs() {
 		cr4.insert(Cr4::CR4_ENABLE_FSGSBASE);
 	} else {
 		error!("libhermit-rs requires the CPU feature FSGSBASE");
@@ -761,7 +773,7 @@ pub fn detect_frequency() {
 }
 
 pub fn print_information() {
-	infoheader!(" CPU INFORMATION ");
+	infoheader!(" CPU IINFORMATION ");
 
 	let cpuid = CpuId::new();
 	let extended_function_info = cpuid
@@ -846,6 +858,15 @@ pub fn supports_x2apic() -> bool {
 #[inline]
 pub fn supports_xsave() -> bool {
 	unsafe { SUPPORTS_XSAVE }
+}
+
+#[inline]
+pub fn supports_pku() -> bool {
+	unsafe { SUPPORTS_PKU }
+}
+#[inline]
+pub fn supports_ospke() -> bool {
+	unsafe { SUPPORTS_OSPKE }
 }
 
 #[inline]
