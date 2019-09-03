@@ -15,6 +15,8 @@ fn test_result<T>(result: Result<(), T>) -> &'static str {
 }
 
 fn main() {
+    test_mpk();
+/*
 	println!("Test {} ... {}", stringify!(hello), test_result(hello()));
 	println!(
 		"Test {} ... {}",
@@ -81,4 +83,5 @@ fn main() {
 		stringify!(test_http_request),
 		test_result(test_http_request())
 	);
+*/
 }

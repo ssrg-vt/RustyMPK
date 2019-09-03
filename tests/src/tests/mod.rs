@@ -9,6 +9,7 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Instant;
 use std::vec;
+use arch::x86_64::mm::mpk;
 
 mod laplace;
 mod matmul;
@@ -300,6 +301,26 @@ pub fn test_http_request() -> Result<(), std::io::Error> {
 
 	let mut buf = Vec::new();
 	stream.read_to_end(&mut buf)?;
+
+	Ok(())
+}
+
+pub fn test_mpk() -> Result<(), ()> {
+	// Make a vector to hold the children which are spawned.
+	let mut children = vec![];
+
+	for i in 0..2 {
+		// Spin up another thread
+		children.push(thread::spawn(move || {
+            mpk::mpk_set_perm(1, mpk::MpkPerm::MpkRw);
+            println!("this is thread number {}", i);
+		}));
+	}
+
+	for child in children {
+		// Wait for the thread to finish. Returns a result.
+		let _ = child.join();
+	}
 
 	Ok(())
 }
