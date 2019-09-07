@@ -436,6 +436,7 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 	default fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL == S::MAP_LEVEL);
 		let index = page.table_index::<L>();
+        info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
 
 		if self.entries[index].is_present() {
 			Some(self.entries[index])
@@ -572,14 +573,15 @@ pub fn set_pkeys<S: PageSize>(virtual_address: usize, count :usize, key: u8) -> 
     let mut entry: PageTableEntry;
     range = get_page_range(virtual_address, count);
     for page in range {
-       if let Some(tmp_entry) = get_page_table_entry::<BasePageSize>(page.address()) {
-           entry = tmp_entry as PageTableEntry;
-           entry.set_pkey(key);
-       }
-       else
-       {
-            panic!("No page table entry for virtual address {:#X}",virtual_address);
-       }
+        info!("v address: {:#X} p address: {:#X}", virtual_address, virtual_to_physical(virtual_address));
+        if let Some(result) = get_page_table_entry::<S>(page.address()) {
+            entry = result as PageTableEntry;
+            info!("before setting pkey, entry: {:#X}", entry.physical_address_and_flags);
+            entry.set_pkey(key);
+            info!("after setting pkey, entry: {:#X}", entry.physical_address_and_flags);
+        } else {
+            panic!("No page table entry for virtual address {:#X}", virtual_address);
+        }
     }
     return 0;
 }
@@ -631,7 +633,7 @@ pub fn get_physical_address<S: PageSize>(virtual_address: usize) -> usize {
 
 	let page = Page::<S>::including_address(virtual_address);
 	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
-	let address = root_pagetable
+    let address = root_pagetable
 		.get_page_table_entry(page)
 		.expect("Entry not present")
 		.address();

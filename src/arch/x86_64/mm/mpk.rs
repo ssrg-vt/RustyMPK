@@ -45,6 +45,7 @@ fn wrpkru(val: u32) {
 }
 
 pub fn mpk_swap_pkru(new_pkru: u32) -> u32 {
+    info!("mpk_swap_pkru");
 
     if processor::supports_ospke() == true {
         return 0;
@@ -96,6 +97,7 @@ fn pkru_set_no_access(key: u8, val: &mut u32) -> i32 {
 }
 
 pub fn mpk_mem_set_key(mut addr: usize, mut size: usize, key: u8) -> i32 {
+    info!("mpk_mem_set_key");
 
     if processor::supports_ospke() == false {
         return -ENOSYS;
@@ -119,11 +121,11 @@ pub fn mpk_mem_set_key(mut addr: usize, mut size: usize, key: u8) -> i32 {
     {
         count = count + 1;
     }
-
     return paging::set_pkeys::<BasePageSize>(addr, count, key);
 }
 
 pub fn mpk_set_perm(key: u8, perm: MpkPerm) -> i32 {
+    info!("mpk_set_perm");
 
     if processor::supports_ospke() == false {
         return -ENOSYS;
@@ -150,14 +152,27 @@ pub fn mpk_set_perm(key: u8, perm: MpkPerm) -> i32 {
     return 0;
 }
 
-//pub fn mpk_fault(addr: u64, ef: &mut exception_frame) {
+pub fn mpk_fault(addr: u64, ef: &mut ExceptionStackFrame) {
 /* FIXME
  * Do page fault handling
  */
-//}
+    let rip = ef::rip;
+    let pkru: u32 = ef::pkru as u32;
+    
+    mpk_clear_pkru();
+   
+    debug!("\nERROR!\n");
+    debug!("[MPK] MPK fault @{:#X}\n",addr);
+    debug!("[MPK] RIP is  {:#X}\n", rip);
+    debug!("[MPK] PKRU is {#:X}\n", pkru);
+
+
+
+}
 
 
 pub fn mpk_clear_pkru() {
+    info!("mpk_clear_pkru");
     if processor::supports_ospke() == false {
         return;
     }
@@ -167,6 +182,7 @@ pub fn mpk_clear_pkru() {
 
 /* Return the PKRU value */
 pub fn mpk_get_pkru() -> u32 {
+    info!("mpk_get_pkru");
 
     if processor::supports_ospke() == false {
         return 0;
@@ -177,6 +193,7 @@ pub fn mpk_get_pkru() -> u32 {
 
 /* Set the pkru value to 'val' */
 pub fn mpk_set_pkru(val: u32) {
+    info!("mpk_set_pkru");
     if processor::supports_ospke() == true {
         wrpkru(val);
     }

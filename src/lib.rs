@@ -81,6 +81,8 @@ use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use core::ptr;
 use mm::allocator::LockedHeap;
+use x86_64::mm::mpk;
+use x86_64::mm::paging;
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -220,8 +222,18 @@ extern "C" fn initd(_arg: usize) {
 
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
+    
+    let a = mm::allocate(4096, false);
+    //info!("p_virt: {:#X} p_phys: {:#X}", a,  paging::virtual_to_physical(a));
+    mpk::mpk_mem_set_key(a, 4096, 15);
+    mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
 
-	unsafe {
+    unsafe {
+        let a_ptr: *mut u8= a as *mut u8;
+        ptr::write_bytes(a_ptr, 1, 4096); 
+    }
+
+    unsafe {
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}

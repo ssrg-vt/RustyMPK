@@ -9,7 +9,6 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Instant;
 use std::vec;
-use arch::x86_64::mm::mpk;
 
 mod laplace;
 mod matmul;
@@ -37,7 +36,7 @@ pub fn thread_creation() -> Result<(), ()> {
 		let builder = thread::Builder::new();
 		let start = get_timestamp_rdtscp();
 		let child = builder.spawn(|| get_timestamp_rdtscp()).unwrap();
-		thread::yield_now();
+        thread::yield_now();
 		match child.join() {
 			Ok(end) => {
 				sum += end - start;
@@ -312,7 +311,6 @@ pub fn test_mpk() -> Result<(), ()> {
 	for i in 0..2 {
 		// Spin up another thread
 		children.push(thread::spawn(move || {
-            mpk::mpk_set_perm(1, mpk::MpkPerm::MpkRw);
             println!("this is thread number {}", i);
 		}));
 	}

@@ -521,6 +521,7 @@ impl fmt::Display for CpuFeaturePrinter {
 		}
 		if self.extended_feature_info.has_ospke() {
 			write!(f, "OSPKE ")?;
+            unsafe { SUPPORTS_OSPKE = true; }
 		}
 		if self.extended_feature_info.has_fsgsbase() {
 			write!(f, "FSGSBASE ")?;
