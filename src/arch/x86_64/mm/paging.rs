@@ -122,7 +122,14 @@ impl PageTableEntry {
 		self.physical_address_and_flags
 			& !(BasePageSize::SIZE - 1)
 			& !(PageTableEntryFlags::EXECUTE_DISABLE).bits()
+            & !(0xF << 59)  /* exclude pkey */
 	}
+
+    /// Return the stored flags
+    pub fn get_flags(self) -> usize {
+        self.physical_address_and_flags
+            & ((BasePageSize::SIZE - 1) | (PageTableEntryFlags::EXECUTE_DISABLE).bits())
+    }
 
 	/// Returns whether this entry is valid (present).
 	fn is_present(self) -> bool {
@@ -139,13 +146,6 @@ impl PageTableEntry {
 		(self.physical_address_and_flags & PageTableEntryFlags::USER_ACCESSIBLE.bits()) != 0
 	}
 
-    /// Set pkey in the page
-    fn set_pkey(&mut self, key: u8) {
-        let tmp: usize;
-        tmp = (key as usize)& 15;
-        self.physical_address_and_flags |= tmp << 59;
-    }
-
 	/// Mark this as a valid (present) entry and set address translation and flags.
 	///
 	/// # Arguments
@@ -153,7 +153,7 @@ impl PageTableEntry {
 	/// * `physical_address` - The physical memory address this entry shall translate to
 	/// * `flags` - Flags from PageTableEntryFlags (note that the PRESENT and ACCESSED flags are set automatically)
 	fn set(&mut self, physical_address: usize, flags: PageTableEntryFlags) {
-		if flags.contains(PageTableEntryFlags::HUGE_PAGE) {
+        if flags.contains(PageTableEntryFlags::HUGE_PAGE) {
 			// HUGE_PAGE may indicate a 2 MiB or 1 GiB page.
 			// We don't know this here, so we can only verify that at least the offset bits for a 2 MiB page are zero.
 			assert!(
@@ -180,6 +180,7 @@ impl PageTableEntry {
 		let mut flags_to_set = flags;
 		flags_to_set.insert(PageTableEntryFlags::PRESENT);
 		flags_to_set.insert(PageTableEntryFlags::ACCESSED);
+		flags_to_set.insert(PageTableEntryFlags::USER_ACCESSIBLE);
 		self.physical_address_and_flags = physical_address | flags_to_set.bits();
 	}
 }
@@ -436,7 +437,8 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 	default fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL == S::MAP_LEVEL);
 		let index = page.table_index::<L>();
-        info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
+        //info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
+        //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
 
 		if self.entries[index].is_present() {
 			Some(self.entries[index])
@@ -471,6 +473,7 @@ where
 	fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL >= S::MAP_LEVEL);
 		let index = page.table_index::<L>();
+        //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
 
 		if self.entries[index].is_present() {
 			if L::LEVEL > S::MAP_LEVEL {
@@ -504,7 +507,7 @@ where
 			if !self.entries[index].is_present() {
 				// Allocate a single 4 KiB page for the new entry and mark it as a valid, writable subtable.
 				let physical_address = physicalmem::allocate(BasePageSize::SIZE).unwrap();
-				self.entries[index].set(physical_address, PageTableEntryFlags::WRITABLE);
+			    self.entries[index].set(physical_address, PageTableEntryFlags::WRITABLE);
 
 				// Mark all entries as unused in the newly created table.
 				let subtable = self.subtable::<S>(page);
@@ -568,20 +571,42 @@ where
 	}
 }
 
-pub fn set_pkeys<S: PageSize>(virtual_address: usize, count :usize, key: u8) -> i32 {
-    let range: PageIter<S>;
-    let mut entry: PageTableEntry;
-    range = get_page_range(virtual_address, count);
-    for page in range {
-        info!("v address: {:#X} p address: {:#X}", virtual_address, virtual_to_physical(virtual_address));
-        if let Some(result) = get_page_table_entry::<S>(page.address()) {
-            entry = result as PageTableEntry;
-            info!("before setting pkey, entry: {:#X}", entry.physical_address_and_flags);
-            entry.set_pkey(key);
-            info!("after setting pkey, entry: {:#X}", entry.physical_address_and_flags);
-        } else {
-            panic!("No page table entry for virtual address {:#X}", virtual_address);
-        }
+pub fn set_pkey<S: PageSize>(virtual_address: usize, count :usize, key: u8) -> i32 {
+    /* Create an empty flags */
+    let mut flags = PageTableEntryFlags::empty();
+
+    /* Key 0 is reserved */
+    let pkey: usize = (key as usize)& 15;
+    /* Set pkey and existing flags */
+    let pkey_flag: PageTableEntryFlags = PageTableEntryFlags { bits: (pkey << 59) | get_existing_flags::<S>(virtual_address) };
+    /* Set pkey bits */
+    flags.insert(pkey_flag);
+    /* Set user bit */
+    flags.insert(PageTableEntryFlags::USER_ACCESSIBLE);
+    /* Set flags on the PTE */
+    map::<S>(virtual_address, get_physical_address::<S>(virtual_address), count, flags);
+
+    return 0;
+}
+
+pub fn get_existing_flags<S: PageSize>(virtual_address: usize) -> usize {
+    let entry: PageTableEntry;
+    if let Some(result) = get_page_table_entry::<S>(virtual_address) {
+        entry = result as PageTableEntry;
+        return entry.get_flags();
+    } else {
+        panic!("No page table entry for virtual address {:#X}", virtual_address);
+    }
+}
+
+pub fn pkey_print<S: PageSize>(virtual_address: usize) -> usize {
+    let entry: PageTableEntry;
+    //error!("[pkey_print]v address: {:#X} p address: {:#X}", virtual_address, virtual_to_physical(virtual_address));
+    if let Some(result) = get_page_table_entry::<S>(virtual_address) {
+        entry = result as PageTableEntry;
+        error!("virtual: {:#X}, physical: {:#X}, page table entry: {:#X}", virtual_address, virt_to_phys(virtual_address), entry.physical_address_and_flags);
+    } else {
+        panic!("No page table entry for virtual address {:#X}", virtual_address);
     }
     return 0;
 }
@@ -595,10 +620,15 @@ pub extern "x86-interrupt" fn page_fault_handler(
 	// Anything else is an error!
 	let pferror = PageFaultError::from_bits_truncate(error_code as u32);
 	error!("Page Fault (#PF) Exception: {:#?}", stack_frame);
-	error!(
-		"virtual_address = {:#X}, page fault error = {}",
-		virtual_address, pferror
-	);
+    if pferror.bits() & 0b100000 != 0 {
+        error!("virtual_address = {:#X}, page fault error = There was a protection key violation.", virtual_address);
+        error!("{}", pferror);
+    } else {
+        error!(
+		    "virtual_address = {:#X}, page fault error = {}",
+		    virtual_address, pferror
+	    );
+    }
 	error!(
 		"fs = {:#X}, gs = {:#X}",
 		processor::readfs(),
@@ -666,7 +696,7 @@ pub fn virtual_to_physical(virtual_address: usize) -> usize {
 			let off = virtual_address
 				& !(((!0usize) << page_bits) & !PageTableEntryFlags::EXECUTE_DISABLE.bits());
 			let phys =
-				entry & (((!0usize) << page_bits) & !PageTableEntryFlags::EXECUTE_DISABLE.bits());
+				entry & (((!0usize) << page_bits) & !PageTableEntryFlags::EXECUTE_DISABLE.bits() & /* exclude pkey */ !(0xF << 59));
 
 			return off | phys;
 		}

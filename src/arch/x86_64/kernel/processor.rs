@@ -521,7 +521,6 @@ impl fmt::Display for CpuFeaturePrinter {
 		}
 		if self.extended_feature_info.has_ospke() {
 			write!(f, "OSPKE ")?;
-            unsafe { SUPPORTS_OSPKE = true; }
 		}
 		if self.extended_feature_info.has_fsgsbase() {
 			write!(f, "FSGSBASE ")?;
@@ -663,7 +662,6 @@ pub fn detect_features() {
 		SUPPORTS_XSAVE = feature_info.has_xsave();
 
         SUPPORTS_PKU = extended_feature_info.has_pku();
-        SUPPORTS_OSPKE = extended_feature_info.has_ospke();
 
         SUPPORTS_FSGS = extended_feature_info.has_fsgsbase();
 
@@ -723,6 +721,7 @@ pub fn configure() {
 
     if supports_pku() {
 		cr4.insert(Cr4::CR4_ENABLE_PROTECTION_KEY);
+        unsafe { SUPPORTS_OSPKE = true; }
     }
 
     if supports_fsgs() {

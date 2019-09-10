@@ -81,8 +81,12 @@ use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use core::ptr;
 use mm::allocator::LockedHeap;
+
 use x86_64::mm::mpk;
+use x86_64::mm::virtualmem;
+use x86_64::mm::physicalmem;
 use x86_64::mm::paging;
+use x86_64::mm::paging::{BasePageSize, PageTableEntryFlags};
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -222,15 +226,46 @@ extern "C" fn initd(_arg: usize) {
 
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
-    
-    let a = mm::allocate(4096, false);
-    //info!("p_virt: {:#X} p_phys: {:#X}", a,  paging::virtual_to_physical(a));
-    mpk::mpk_mem_set_key(a, 4096, 15);
-    mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
 
-    unsafe {
-        let a_ptr: *mut u8= a as *mut u8;
-        ptr::write_bytes(a_ptr, 1, 4096); 
+    let mut virtual_address: usize = 0;
+    let mut physical_address: usize = 0;
+    let result = virtualmem::allocate_aligned(4096, 4096);
+    match result {
+        Ok(v) => {
+            virtual_address = v;
+        }
+        Err(_e) => {
+            error!("virtualmem:allocate_aligned failed");
+        }
+    }
+    let result2 = physicalmem::allocate_aligned(4096, 4096);
+    match result2 {
+        Ok(v) => {
+            physical_address = v;
+        }
+        Err(_e) => {
+            error!("physicalmem:allocate_aligned failed");
+        }
+    }
+
+    if virtual_address != 0 && physical_address != 0
+    {
+        let mut flags = PageTableEntryFlags::empty();
+        flags.normal().writable();
+        flags.insert(PageTableEntryFlags::USER_ACCESSIBLE);
+        paging::map::<BasePageSize>(virtual_address, physical_address, 1, flags);
+        //paging::pkey_print::<BasePageSize>(virtual_address);
+        mpk::mpk_mem_set_key(virtual_address, 4096, 15);
+        //paging::pkey_print::<BasePageSize>(virtual_address);
+        mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRw);
+        //info!("pkru: {:#X}", mpk::mpk_get_pkru());
+        unsafe {
+            let m_ptr: *mut u8= virtual_address as *mut u8;
+            *m_ptr = 149;
+            mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRo);
+            let m_ptr: *mut u8= virtual_address as *mut u8;
+            info!("{}", *m_ptr as u8);
+        }
     }
 
     unsafe {
