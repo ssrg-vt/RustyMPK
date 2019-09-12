@@ -260,11 +260,13 @@ extern "C" fn initd(_arg: usize) {
         mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRw);
         //info!("pkru: {:#X}", mpk::mpk_get_pkru());
         unsafe {
+            //info!("virtual_address: {:#X}", virtual_address);
             let m_ptr: *mut u8= virtual_address as *mut u8;
             *m_ptr = 149;
             mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRo);
             let m_ptr: *mut u8= virtual_address as *mut u8;
             info!("{}", *m_ptr as u8);
+            //mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
         }
     }
 

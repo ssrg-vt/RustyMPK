@@ -87,6 +87,12 @@ pub fn bench_sched_two_threads() -> Result<(), ()> {
 				for _ in 0..n {
 					thread::yield_now();
 				}
+                /*
+                unsafe {
+                        let addr = 0x3C79000;
+                        let p_addr: *mut u8 = addr as *mut u8;
+                        println!("pp: {}", *p_addr);
+                }*/
 			})
 		})
 		.collect();

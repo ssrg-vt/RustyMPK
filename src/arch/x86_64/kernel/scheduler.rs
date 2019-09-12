@@ -29,6 +29,8 @@ extern "C" {
 
 #[repr(C, packed)]
 struct State {
+    /// PKRU
+    pkru: usize,
 	/// GS register
 	gs: usize,
 	/// FS register for TLS support
