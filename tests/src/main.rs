@@ -16,15 +16,10 @@ fn test_result<T>(result: Result<(), T>) -> &'static str {
 
 fn main() {
 	println!("Test {} ... {}", stringify!(hello), test_result(hello()));
-    println!(
-		"Test {} ... {}",
-		stringify!(bench_sched_one_thread),
-		test_result(bench_sched_one_thread())
-	);
 	println!(
 		"Test {} ... {}",
-		stringify!(bench_sched_two_threads),
-		test_result(bench_sched_two_threads())
+		stringify!(test_pkru_context_switch),
+		test_result(test_pkru_context_switch())
 	);
     unsafe {
         let addr = 0x3C79000;

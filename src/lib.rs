@@ -266,7 +266,7 @@ extern "C" fn initd(_arg: usize) {
             mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRo);
             let m_ptr: *mut u8= virtual_address as *mut u8;
             info!("{}", *m_ptr as u8);
-            //mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
+           //mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
         }
     }
 

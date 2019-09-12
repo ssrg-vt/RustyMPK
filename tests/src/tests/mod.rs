@@ -87,12 +87,6 @@ pub fn bench_sched_two_threads() -> Result<(), ()> {
 				for _ in 0..n {
 					thread::yield_now();
 				}
-                /*
-                unsafe {
-                        let addr = 0x3C79000;
-                        let p_addr: *mut u8 = addr as *mut u8;
-                        println!("pp: {}", *p_addr);
-                }*/
 			})
 		})
 		.collect();
@@ -328,3 +322,47 @@ pub fn test_mpk() -> Result<(), ()> {
 
 	Ok(())
 }
+
+pub fn test_pkru_context_switch() -> Result<(), ()> {
+	let n = 1000000;
+	let nthreads = 2;
+
+	// cache warmup
+	thread::yield_now();
+	thread::yield_now();
+	let _ = get_timestamp_rdtscp();
+
+	let start = get_timestamp_rdtscp();
+	let threads: Vec<_> = (0..nthreads - 1)
+		.map(|_| {
+			thread::spawn(move || {
+				for _ in 0..n {
+					thread::yield_now();
+				}
+                unsafe {
+                        let addr = 0x3C79000;
+                        let p_addr: *mut u8 = addr as *mut u8;
+                        println!("pp: {}", *p_addr);
+                }
+			})
+		})
+		.collect();
+
+	for _ in 0..n {
+		thread::yield_now();
+	}
+
+	let ticks = get_timestamp_rdtscp() - start;
+
+	for t in threads {
+		t.join().unwrap();
+	}
+
+	println!(
+		"Scheduling time {} ticks (2 threads)",
+		ticks / (nthreads * n)
+	);
+
+	Ok(())
+}
+
