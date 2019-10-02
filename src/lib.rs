@@ -85,6 +85,7 @@ use x86_64::mm::virtualmem;
 use x86_64::mm::physicalmem;
 use x86_64::mm::paging;
 use x86_64::mm::paging::{BasePageSize, PageTableEntryFlags};
+use core::ptr;
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -241,13 +242,12 @@ extern "C" fn initd(_arg: usize) {
 
         //paging::pkey_print::<BasePageSize>(virtual_address);
         mpk::mpk_mem_set_key(virtual_address, 4096, 15);
-        mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRw);
         //info!("pkru: {:#X}", mpk::mpk_get_pkru());
-
         unsafe {
-        ptr::write_bytes(virtual_address as *mut u8, 119, 8);
+            mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRw);
+            ptr::write_bytes(virtual_address as *mut u8, 119, 8);
+            mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
         }
-        mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
         //unsafe {
             //info!("virtual_address: {:#X}", virtual_address);
             //let m_ptr: *mut u8= virtual_address as *mut u8;
