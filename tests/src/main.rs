@@ -1,5 +1,3 @@
-#![feature(duration_float)]
-
 extern crate http;
 extern crate rayon;
 
@@ -62,7 +60,7 @@ fn main() {
 		stringify!(pi_parallel),
 		test_result(pi_parallel(2, 5000000))
 	);
-	println!(
+	/*println!(
 		"Test {} ... {}",
 		stringify!(laplace),
 		test_result(laplace(128, 128))
@@ -71,7 +69,7 @@ fn main() {
 		"Test {} ... {}",
 		stringify!(test_matmul_strassen),
 		test_result(test_matmul_strassen())
-	);
+	);*/
 	println!(
 		"Test {} ... {}",
 		stringify!(thread_creation),
