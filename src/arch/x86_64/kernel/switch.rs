@@ -34,9 +34,9 @@ pub extern "C" fn switch(_old_stack: *mut usize, _new_stack: usize) {
 			push %rax\n\t\
 			rdgsbaseq %rax\n\t\
 			push %rax\n\t\
-            xor %ecx, %ecx\n\t\
-            rdpkru\n\t\
-            push %rax\n\t\
+                        xor %ecx, %ecx\n\t\
+                        rdpkru\n\t\
+                        push %rax\n\t\
 			// store the old stack pointer in the dereferenced first parameter\n\t\
 			// and load the new stack pointer in the second parameter.\n\t\
 			mov %rsp, (%rdi)\n\t\
@@ -48,11 +48,11 @@ pub extern "C" fn switch(_old_stack: *mut usize, _new_stack: usize) {
 			// set stack pointer in TSS \n\t\
 			call set_current_kernel_stack \n\t\
 			// restore context \n\t\
-            pop %rax\n\t\
-            xor %ecx, %ecx\n\t\
-            xor %edx, %edx\n\t\
-            wrpkru\n\t\
-            pop %rax\n\t\
+                        pop %rax\n\t\
+                        xor %ecx, %ecx\n\t\
+                        xor %edx, %edx\n\t\
+                        wrpkru\n\t\
+                        pop %rax\n\t\
 			wrgsbaseq %rax\n\t\
 			pop %rax\n\t\
 			wrfsbaseq %rax\n\t\
