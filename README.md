@@ -3,6 +3,8 @@
 # RustyHermit - A Rust-based, lightweight unikernel
 
 [![Build Status](https://git.rwth-aachen.de/acs/public/hermitcore/libhermit-rs/badges/master/pipeline.svg)](https://git.rwth-aachen.de/acs/public/hermitcore/libhermit-rs/pipelines)
+[![Build Status](https://travis-ci.org/hermitcore/libhermit-rs.svg?branch=master)](https://travis-ci.org/hermitcore/libhermit-rs)
+[![License](https://img.shields.io/crates/l/rusty-hermit.svg)](https://img.shields.io/crates/l/rusty-hermit.svg)
 [![Slack Status](https://radiant-ridge-95061.herokuapp.com/badge.svg)](https://radiant-ridge-95061.herokuapp.com)
 
 [HermitCore]( http://www.hermitcore.org ) is a [unikernel](http://unikernel.org) targeting a scalable and predictable runtime for high-performance and cloud computing.
@@ -39,7 +41,9 @@ cd -
 
 ## Running RustyHermit
 
-Currently, the RustyHermit can only run within our own hypervisor [*uhyve*](https://github.com/hermitcore/uhyve) , which requires [KVM](https://www.linux-kvm.org/) to create a virtual machine.
+### Using uhyve as hypervisor
+
+RustyHermit can run within our own hypervisor [*uhyve*](https://github.com/hermitcore/uhyve) , which requires [KVM](https://www.linux-kvm.org/) to create a virtual machine.
 Please install the hypervisor as follows:
 
 ```sh
@@ -74,15 +78,36 @@ $ HERMIT_CPUS=4 HERMIT_MEM=8G ./proxy ../../hello_world/target/x86_64-unknown-he
 
 More details can be found in the uhyve README.
 
+### Using Qemu as hypervisor
+
+It is also possible to run RustHermit within [Qemu](https://www.qemu.org).
+In this case, a loader is required to boot the application.
+This loader is part of the repository and can be build with [xbuid](https://github.com/rust-osdev/cargo-xbuild) as follows.
+
+```bash
+$ cd loader
+$ cargo xbuild --target x86_64-unknown-hermit-loader.json
+```
+
+Afterwards, the loader is stored in `target/x86_64-unknown-hermit-loader/debug/` as `hermit-loader`.
+Afterwards, the unikernel application `app` can be booted with following command:
+
+```bash
+$ qemu-system-x86_64 -display none -smp 1 -m 64M -serial stdio  -kernel path_to_loader/hermit-loader -initrd path_to_app/app -cpu qemu64,apic,fsgsbase,rdtscp,xsave,fxsr
+```
+
+It is important to enable the processor features _fsgsbase_ and _rdtscp_ because it is a prerequisite to boot RustyHermit.
+
 ## Use RustyHermit for C/C++, Go, and Fortran applications
 
 This kernel can still be used with C/C++, Go, and Fortran applications.
 A tutorial on how to do this is available at [https://github.com/hermitcore/hermit-playground](https://github.com/hermitcore/hermit-playground).
 
 ## Missing features
-(might be comming)
-* Multikernel support
-* Running baremetal/without hypervisor
+
+* Multikernel support (might be comming)
+* Virtio support (comming soon)
+* Network suppot (comming soon)
 
 ## Credits
 
