@@ -14,6 +14,7 @@ mod test;
 use arch;
 use arch::mm::paging::{BasePageSize, HugePageSize, LargePageSize, PageSize, PageTableEntryFlags};
 use arch::mm::physicalmem::total_memory_size;
+use arch::mm::mpk;
 #[cfg(feature = "newlib")]
 use arch::mm::virtualmem::kernel_heap_end;
 use core::mem;
@@ -33,6 +34,10 @@ static mut HEAP_START_ADDRESS: usize = 0;
 
 /// End address of the user heap
 static mut HEAP_END_ADDRESS: usize = 0;
+
+pub const SAFE_MEM_REGION: u8 = 1;
+pub const UNSAFE_MEM_REGION: u8 = 2;
+pub const SHARED_MEM_REGION: u8 = 3;
 
 pub fn kernel_start_address() -> usize {
 	unsafe { KERNEL_START_ADDRESS }
@@ -247,6 +252,45 @@ pub fn allocate(sz: usize, execute_disable: bool) -> usize {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
+        if execute_disable {
+            mpk::mpk_mem_set_key(virtual_address, size, SAFE_MEM_REGION);
+        }
+
+	virtual_address
+}
+
+pub fn unsafe_allocate(sz: usize, execute_disable: bool) -> usize {
+	let size = align_up!(sz, BasePageSize::SIZE);
+
+	let physical_address = arch::mm::physicalmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+	let virtual_address = arch::mm::virtualmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+
+	let count = size / BasePageSize::SIZE;
+	let mut flags = PageTableEntryFlags::empty();
+	flags.normal().writable();
+	if execute_disable {
+		flags.execute_disable();
+	}
+	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
+        mpk::mpk_mem_set_key(virtual_address, size, UNSAFE_MEM_REGION);
+
+	virtual_address
+}
+
+pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
+	let size = align_up!(sz, BasePageSize::SIZE);
+
+	let physical_address = arch::mm::physicalmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+	let virtual_address = arch::mm::virtualmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+
+	let count = size / BasePageSize::SIZE;
+	let mut flags = PageTableEntryFlags::empty();
+	flags.normal().writable();
+	if execute_disable {
+		flags.execute_disable();
+	}
+	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
+        mpk::mpk_mem_set_key(virtual_address, size, SHARED_MEM_REGION);
 
 	virtual_address
 }

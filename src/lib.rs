@@ -79,6 +79,9 @@ use alloc::alloc::Layout;
 use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use mm::allocator::LockedHeap;
+use mm::allocate;
+use mm::unsafe_allocate;
+use mm::shared_allocate;
 
 use x86_64::mm::mpk;
 use x86_64::mm::virtualmem;
@@ -200,7 +203,6 @@ extern "C" fn initd(_arg: usize) {
 		// Initialize the mmnif interface using static IPs in the range 192.168.28.x.
 		info!("HermitCore is running side-by-side to Linux!");
 	}
-
 	syscalls::init();
 
 	// Get the application arguments and environment variables.
@@ -209,56 +211,16 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-    let virtual_address: usize;
-    let result = virtualmem::allocate_aligned(4096, 4096);
-    match result {
-        Ok(v) => {
-            virtual_address = v;
-        }
-        Err(_e) => {
-            virtual_address = 0;
-            error!("virtualmem:allocate_aligned failed");
-        }
-    }
-
-    let physical_address: usize;
-    let result2 = physicalmem::allocate_aligned(4096, 4096);
-    match result2 {
-        Ok(v) => {
-            physical_address = v;
-        }
-        Err(_e) => {
-            physical_address = 0;
-            error!("physicalmem:allocate_aligned failed");
-        }
-    }
-
-    if virtual_address != 0 && physical_address != 0
-    {
-        let mut flags = PageTableEntryFlags::empty();
-        flags.normal().writable();
-        flags.insert(PageTableEntryFlags::USER_ACCESSIBLE);
-        paging::map::<BasePageSize>(virtual_address, physical_address, 1, flags);
-
-        //paging::pkey_print::<BasePageSize>(virtual_address);
-        mpk::mpk_mem_set_key(virtual_address, 4096, 15);
-        //info!("pkru: {:#X}", mpk::mpk_get_pkru());
+        let size: usize = 4096;
         unsafe {
-            mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRw);
-            ptr::write_bytes(virtual_address as *mut u8, 119, 8);
-            mpk::mpk_set_perm(15, mpk::MpkPerm::MpkNone);
+            let ptr = isolate_function!(unsafe_allocate(size, true));
+            let ptr_p = ptr as *mut u8;
+            *ptr_p = 12;
+            info!("ptr: {:#X}", ptr);
+            info!("*ptr: {:#X}", *ptr_p);
         }
-        //unsafe {
-            //info!("virtual_address: {:#X}", virtual_address);
-            //let m_ptr: *mut u8= virtual_address as *mut u8;
-            //*m_ptr = 149;
-            //mpk::mpk_set_perm(15, mpk::MpkPerm::MpkRo);
-            //let m_ptr: *mut u8= virtual_address as *mut u8;
-            //info!("{}", *m_ptr as u8);
-        //}
-    }
 
-    unsafe {
+        unsafe {
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}
@@ -290,7 +252,7 @@ fn boot_processor_main() -> ! {
 		arch::boot_application_processors();
 	}
 
-	// Start the initd task.
+        // Start the initd task.
 	let core_scheduler = core_scheduler();
 	core_scheduler.spawn(initd, 0, scheduler::task::NORMAL_PRIO);
 

@@ -19,12 +19,13 @@ fn main() {
 		stringify!(test_pkru_context_switch),
 		test_result(test_pkru_context_switch())
 	);
-    unsafe {
-        let addr = 0x3C79000;
-        let p_addr: *mut u8 = addr as *mut u8;
-        println!("p: {}", *p_addr);
-    }
 /*
+        unsafe {
+            let addr = 0x405000;
+            let p_addr: *mut u8 = addr as *mut u8;
+            println!("p: {}", *p_addr);
+        }
+
 	println!(
 		"Test {} ... {}",
 		stringify!(print_argv),

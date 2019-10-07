@@ -437,11 +437,12 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 	default fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL == S::MAP_LEVEL);
 		let index = page.table_index::<L>();
-        //info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
-        //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
+                //info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
+                //error!("{} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user());
+                //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
 
 		if self.entries[index].is_present() {
-			Some(self.entries[index])
+                        Some(self.entries[index])
 		} else {
 			None
 		}
@@ -473,7 +474,7 @@ where
 	fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL >= S::MAP_LEVEL);
 		let index = page.table_index::<L>();
-        //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
+                //error!("{} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user());
 
 		if self.entries[index].is_present() {
 			if L::LEVEL > S::MAP_LEVEL {
@@ -601,7 +602,7 @@ pub fn get_existing_flags<S: PageSize>(virtual_address: usize) -> usize {
 
 pub fn pkey_print<S: PageSize>(virtual_address: usize) -> usize {
     let entry: PageTableEntry;
-    //error!("[pkey_print]v address: {:#X} p address: {:#X}", virtual_address, virtual_to_physical(virtual_address));
+    error!("[pkey_print]v address: {:#X} p address: {:#X}", virtual_address, get_physical_address::<S>(virtual_address));
     if let Some(result) = get_page_table_entry::<S>(virtual_address) {
         entry = result as PageTableEntry;
         error!("virtual: {:#X}, physical: {:#X}, page table entry: {:#X}", virtual_address, virt_to_phys(virtual_address), entry.physical_address_and_flags);

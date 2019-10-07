@@ -25,8 +25,6 @@ use scheduler::task::{Task, TaskFrame, TaskTLS};
 struct State {
         /// PKRU
         pkru: usize,
-	/// GS register
-	gs: usize,
 	/// FS register for TLS support
 	fs: usize,
 	/// R15 register

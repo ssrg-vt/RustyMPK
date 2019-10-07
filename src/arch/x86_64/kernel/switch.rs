@@ -32,8 +32,6 @@ pub extern "C" fn switch(_old_stack: *mut usize, _new_stack: usize) {
 			push %r15\n\t\
 			rdfsbaseq %rax\n\t\
 			push %rax\n\t\
-			rdgsbaseq %rax\n\t\
-			push %rax\n\t\
                         xor %ecx, %ecx\n\t\
                         rdpkru\n\t\
                         push %rax\n\t\
@@ -53,8 +51,6 @@ pub extern "C" fn switch(_old_stack: *mut usize, _new_stack: usize) {
                         xor %edx, %edx\n\t\
                         wrpkru\n\t\
                         pop %rax\n\t\
-			wrgsbaseq %rax\n\t\
-			pop %rax\n\t\
 			wrfsbaseq %rax\n\t\
 			pop %r15\n\t\
 			pop %r14\n\t\

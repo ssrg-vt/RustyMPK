@@ -33,3 +33,24 @@ macro_rules! print {
 macro_rules! println {
 	($($arg:tt)+) => (print!("{}\n", format_args!($($arg)+)));
 }
+
+macro_rules! isolate_function_no_ret {
+    ($f:ident($($x:tt)*)) => {{
+        use x86_64::mm::mpk;
+        use mm::SAFE_MEM_REGION;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+        $f($($x)*);
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkRw);
+    }};
+}
+
+macro_rules! isolate_function {
+    ($f:ident($($x:tt)*)) => {{
+        use x86_64::mm::mpk;
+        use mm::SAFE_MEM_REGION;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+        let temp_ret = $f($($x)*);
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkRw);
+        temp_ret
+    }};
+}
