@@ -14,12 +14,12 @@ fn test_result<T>(result: Result<(), T>) -> &'static str {
 
 fn main() {
 	println!("Test {} ... {}", stringify!(hello), test_result(hello()));
-	println!(
+/*
+        println!(
 		"Test {} ... {}",
 		stringify!(test_pkru_context_switch),
 		test_result(test_pkru_context_switch())
 	);
-/*
         unsafe {
             let addr = 0x405000;
             let p_addr: *mut u8 = addr as *mut u8;

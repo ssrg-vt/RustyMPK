@@ -575,6 +575,7 @@ where
 pub fn set_pkey<S: PageSize>(virtual_address: usize, count :usize, key: u8) -> i32 {
     /* Create an empty flags */
     let mut flags = PageTableEntryFlags::empty();
+    info!("virtual address: {:#X}, count: {}, key: {}", virtual_address, count, key);
 
     /* Key 0 is reserved */
     let pkey: usize = (key as usize)& 15;

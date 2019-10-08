@@ -75,7 +75,7 @@ impl TaskStacks {
 	pub fn new() -> Self {
 		// Allocate an executable stack to possibly support dynamically generated code on the stack (see https://security.stackexchange.com/a/47825).
 		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, false);
-		debug!("Allocating stack {:#X}", stack);
+		info!("Allocating stack {:#X}, size: {}", stack, DEFAULT_STACK_SIZE);
 
 		Self {
 			is_boot_stack: false,

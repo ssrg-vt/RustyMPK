@@ -253,7 +253,7 @@ pub fn allocate(sz: usize, execute_disable: bool) -> usize {
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
         if execute_disable {
-            mpk::mpk_mem_set_key(virtual_address, size, SAFE_MEM_REGION);
+            mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, SAFE_MEM_REGION);
         }
 
 	virtual_address
@@ -272,7 +272,7 @@ pub fn unsafe_allocate(sz: usize, execute_disable: bool) -> usize {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-        mpk::mpk_mem_set_key(virtual_address, size, UNSAFE_MEM_REGION);
+        mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, UNSAFE_MEM_REGION);
 
 	virtual_address
 }
@@ -290,7 +290,7 @@ pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-        mpk::mpk_mem_set_key(virtual_address, size, SHARED_MEM_REGION);
+        mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, SHARED_MEM_REGION);
 
 	virtual_address
 }

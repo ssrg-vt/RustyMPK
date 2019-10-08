@@ -87,7 +87,7 @@ use x86_64::mm::mpk;
 use x86_64::mm::virtualmem;
 use x86_64::mm::physicalmem;
 use x86_64::mm::paging;
-use x86_64::mm::paging::{BasePageSize, PageTableEntryFlags};
+use x86_64::mm::paging::{BasePageSize, LargePageSize, PageTableEntryFlags};
 use core::ptr;
 
 #[cfg(not(test))]
@@ -212,6 +212,17 @@ extern "C" fn initd(_arg: usize) {
 	core_scheduler().scheduler();
 
         let size: usize = 4096;
+        let align: usize = 4096;
+        let layout: Layout = Layout::from_size_align(size, align).unwrap();
+        let ptr;
+
+        unsafe {
+                ptr = ALLOCATOR.alloc(layout);
+                mpk::mpk_mem_set_key::<LargePageSize>(ptr as usize, size, mm::SAFE_MEM_REGION);
+                paging::pkey_print::<LargePageSize>(ptr as usize);
+        }
+
+        /*
         unsafe {
             let ptr = isolate_function!(unsafe_allocate(size, true));
             let ptr_p = ptr as *mut u8;
@@ -219,6 +230,7 @@ extern "C" fn initd(_arg: usize) {
             info!("ptr: {:#X}", ptr);
             info!("*ptr: {:#X}", *ptr_p);
         }
+        */
 
         unsafe {
 		// And finally start the application.
@@ -234,11 +246,11 @@ fn boot_processor_main() -> ! {
 	logging::init();
 
 	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
-	debug!("Kernel starts at 0x{:x}", environment::get_base_address());
-	debug!("BSS starts at 0x{:x}", unsafe {
+	info!("Kernel starts at 0x{:x}", environment::get_base_address());
+	info!("BSS starts at 0x{:x}", unsafe {
 		&__bss_start as *const usize as usize
 	});
-	debug!(
+	info!(
 		"TLS starts at 0x{:x} (size {} Bytes)",
 		environment::get_tls_start(),
 		environment::get_tls_memsz()
