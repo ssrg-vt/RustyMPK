@@ -52,6 +52,9 @@ extern crate x86;
 extern crate log;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 mod macros;
 
 #[macro_use]
@@ -93,7 +96,11 @@ use core::ptr;
 #[cfg(not(test))]
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
-
+/*
+lazy_static! {
+    static ref bss: u64 = 1234;
+}
+*/
 isolate_var!(static MY_DATA1: u8, 1);
 isolate_var!(static mut MY_DATA2: u64, 2);
 isolate_var!(static MY_BSS1: u64);
@@ -223,7 +230,6 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-        let size: usize = 4096;
 /*
         let align: usize = 4096;
         let layout: Layout = Layout::from_size_align(size, align).unwrap();
@@ -235,6 +241,7 @@ extern "C" fn initd(_arg: usize) {
                 paging::pkey_print::<LargePageSize>(ptr as usize);
         }
 */
+        let size: usize = 4096;
         unsafe {
             let ptr = isolate_function!(unsafe_allocate(size, true));
             let ptr_p = ptr as *mut u8;
