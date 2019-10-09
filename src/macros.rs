@@ -34,6 +34,30 @@ macro_rules! println {
 	($($arg:tt)+) => (print!("{}\n", format_args!($($arg)+)));
 }
 
+macro_rules! isolate_var {
+    /* .data */
+    (static $name:ident: $var_type:ty, $val:expr) => {
+        #[link_section = ".isolated_data"]
+        static $name: $var_type = $val;
+    };
+
+    (static mut $name:ident: $var_type:ty, $val:expr) => {
+        #[link_section = ".isolated_data"]
+        static mut $name: $var_type = $val;
+    };
+
+    /* .bss */
+    (static $name:ident: $var_type:ty) => {
+        #[link_section = ".isolated_bss"]
+        static $name: $var_type = 0;
+    };
+
+    (static mut $name:ident: $var_type:ty) => {
+        #[link_section = ".isolated_bss"]
+        static mut $name: $var_type = 0;
+    };
+}
+
 macro_rules! isolate_function_no_ret {
     ($f:ident($($x:tt)*)) => {{
         use x86_64::mm::mpk;

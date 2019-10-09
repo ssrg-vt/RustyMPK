@@ -94,6 +94,11 @@ use core::ptr;
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
+isolate_var!(static MY_DATA1: u8, 1);
+isolate_var!(static mut MY_DATA2: u64, 2);
+isolate_var!(static MY_BSS1: u64);
+isolate_var!(static mut MY_BSS2: u64);
+
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
 #[no_mangle]
@@ -155,6 +160,13 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 #[cfg(not(test))]
 extern "C" {
 	static mut __bss_start: usize;
+	static mut __bss_end: usize;
+	static mut __isolated_data_start: usize;
+	static mut __isolated_data_end: usize;
+	static mut __isolated_data_size: usize;
+        static mut __isolated_bss_start: usize;
+        static mut __isolated_bss_end: usize;
+        static mut __isolated_bss_size: usize;
 }
 
 /// Helper function to check if uhyve provide an IP device
@@ -212,6 +224,7 @@ extern "C" fn initd(_arg: usize) {
 	core_scheduler().scheduler();
 
         let size: usize = 4096;
+/*
         let align: usize = 4096;
         let layout: Layout = Layout::from_size_align(size, align).unwrap();
         let ptr;
@@ -221,16 +234,18 @@ extern "C" fn initd(_arg: usize) {
                 mpk::mpk_mem_set_key::<LargePageSize>(ptr as usize, size, mm::SAFE_MEM_REGION);
                 paging::pkey_print::<LargePageSize>(ptr as usize);
         }
-
-        /*
+*/
         unsafe {
             let ptr = isolate_function!(unsafe_allocate(size, true));
             let ptr_p = ptr as *mut u8;
             *ptr_p = 12;
             info!("ptr: {:#X}", ptr);
             info!("*ptr: {:#X}", *ptr_p);
+            info!("my_data1: {:#X}", &MY_DATA1 as *const u8 as usize);
+            info!("my_data2: {:#X}", &MY_DATA2 as *const u64 as usize);
+            info!("my_bss1: {:#X}", &MY_BSS1 as *const u64 as usize);
+            info!("my_bss2: {:#X}", &MY_BSS2 as *const u64 as usize);
         }
-        */
 
         unsafe {
 		// And finally start the application.
@@ -250,7 +265,28 @@ fn boot_processor_main() -> ! {
 	info!("BSS starts at 0x{:x}", unsafe {
 		&__bss_start as *const usize as usize
 	});
-	info!(
+        info!("BSS ends at 0x{:x}", unsafe {
+		&__bss_end as *const usize as usize
+	});
+        info!("isolated_DATA starts at 0x{:x}", unsafe {
+		&__isolated_data_start as *const usize as usize
+	});
+        info!("isolated_DATA ends at 0x{:x}", unsafe {
+		&__isolated_data_end as *const usize as usize
+	});
+        info!("isolated_DATA size is {}", unsafe {
+		&__isolated_data_size as *const usize as usize
+	});
+        info!("isolated_BSS starts at 0x{:x}", unsafe {
+		&__isolated_bss_start as *const usize as usize
+	});
+        info!("isolated_BSS ends at 0x{:x}", unsafe {
+		&__isolated_bss_end as *const usize as usize
+	});
+        info!("isolated_BSS size is {}", unsafe {
+		&__isolated_bss_size as *const usize as usize
+	});
+        info!(
 		"TLS starts at 0x{:x} (size {} Bytes)",
 		environment::get_tls_start(),
 		environment::get_tls_memsz()
