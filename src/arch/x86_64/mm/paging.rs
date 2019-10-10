@@ -439,7 +439,6 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 		let index = page.table_index::<L>();
                 //info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
                 //error!("{} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user());
-                //error!("{} index: {:#X}, entry: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].is_user());
 
 		if self.entries[index].is_present() {
                         Some(self.entries[index])

@@ -39,22 +39,13 @@ SECTIONS {
 		*(.bss.*)
 		__bss_end = .;
 	}
-	
-	.isolated_data ALIGN(4096) : AT(__bss_end)
+	.isolated_data 0x400000:
 	{
 		__isolated_data_start = .;
 		*(.isolated_data)
 		*(.isolated_data.*)
 		__isolated_data_end = .;
 		__isolated_data_size = __isolated_data_end - __isolated_data_start;
-	}
-	.isolated_bss ALIGN(4096) : AT(__isolated_data_end)
-	{
-		__isolated_bss_start = .;
-		*(.isolated_bss)
-		*(.isolated_bss.*)
-		__isolated_bss_end = .;
-		__isolated_bss_size = __isolated_bss_end - __isolated_bss_start;
 	}
 	kernel_end = .;
 }

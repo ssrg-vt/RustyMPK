@@ -45,7 +45,17 @@ macro_rules! isolate_var {
         #[link_section = ".isolated_data"]
         static mut $name: $var_type = $val;
     };
+    /* uninitialized */
+    (static $name:ident: $var_type:ty) => {
+        #[link_section = ".isolated_data"]
+        static $name: $var_type = 0;
+    };
 
+    (static mut $name:ident: $var_type:ty) => {
+        #[link_section = ".isolated_data"]
+        static mut $name: $var_type = 0;
+    };
+/*
     /* .bss */
     (static $name:ident: $var_type:ty) => {
         #[link_section = ".isolated_bss"]
@@ -56,6 +66,7 @@ macro_rules! isolate_var {
         #[link_section = ".isolated_bss"]
         static mut $name: $var_type = 0;
     };
+*/
 }
 
 macro_rules! isolate_function_no_ret {

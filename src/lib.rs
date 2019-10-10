@@ -101,10 +101,11 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
-isolate_var!(static MY_DATA1: u8, 1);
+isolate_var!(static MY_DATA1: u64, 1);
 isolate_var!(static mut MY_DATA2: u64, 2);
-isolate_var!(static MY_BSS1: u64);
-isolate_var!(static mut MY_BSS2: u64);
+isolate_var!(static mut MY_DATA3: u64, 3);
+//isolate_var!(static MY_BSS1: u64);
+//isolate_var!(static mut MY_BSS2: u64);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -171,9 +172,11 @@ extern "C" {
 	static mut __isolated_data_start: usize;
 	static mut __isolated_data_end: usize;
 	static mut __isolated_data_size: usize;
+/*
         static mut __isolated_bss_start: usize;
         static mut __isolated_bss_end: usize;
         static mut __isolated_bss_size: usize;
+*/
 }
 
 /// Helper function to check if uhyve provide an IP device
@@ -248,10 +251,18 @@ extern "C" fn initd(_arg: usize) {
             *ptr_p = 12;
             info!("ptr: {:#X}", ptr);
             info!("*ptr: {:#X}", *ptr_p);
-            info!("my_data1: {:#X}", &MY_DATA1 as *const u8 as usize);
-            info!("my_data2: {:#X}", &MY_DATA2 as *const u64 as usize);
-            info!("my_bss1: {:#X}", &MY_BSS1 as *const u64 as usize);
-            info!("my_bss2: {:#X}", &MY_BSS2 as *const u64 as usize);
+
+            info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
+            info!("my_data1 val: {:#X}", MY_DATA1);
+
+            info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
+            info!("my_data2 val: {:#X}", MY_DATA2);
+            let data_p: *mut u64 = &mut MY_DATA2;
+            *data_p = 5;
+            info!("my_data2 val: {:#X}", MY_DATA2);
+
+            info!("my_data3 addr: {:#X}", &MY_DATA3 as *const u64 as usize);
+            info!("my_data3 val: {:#X}", MY_DATA3);
         }
 
         unsafe {
@@ -284,6 +295,7 @@ fn boot_processor_main() -> ! {
         info!("isolated_DATA size is {}", unsafe {
 		&__isolated_data_size as *const usize as usize
 	});
+/*
         info!("isolated_BSS starts at 0x{:x}", unsafe {
 		&__isolated_bss_start as *const usize as usize
 	});
@@ -293,6 +305,7 @@ fn boot_processor_main() -> ! {
         info!("isolated_BSS size is {}", unsafe {
 		&__isolated_bss_size as *const usize as usize
 	});
+*/
         info!(
 		"TLS starts at 0x{:x} (size {} Bytes)",
 		environment::get_tls_start(),
