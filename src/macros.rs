@@ -36,21 +36,11 @@ macro_rules! println {
 
 macro_rules! isolate_var {
     /* .data */
-    (static $name:ident: $var_type:ty, $val:expr) => {
-        #[link_section = ".isolated_data"]
-        static $name: $var_type = $val;
-    };
-
     (static mut $name:ident: $var_type:ty, $val:expr) => {
         #[link_section = ".isolated_data"]
         static mut $name: $var_type = $val;
     };
     /* uninitialized */
-    (static $name:ident: $var_type:ty) => {
-        #[link_section = ".isolated_data"]
-        static $name: $var_type = 0;
-    };
-
     (static mut $name:ident: $var_type:ty) => {
         #[link_section = ".isolated_data"]
         static mut $name: $var_type = 0;

@@ -102,8 +102,8 @@ lazy_static! {
 }
 */
 isolate_var!(static MY_DATA1: u64, 1);
-isolate_var!(static mut MY_DATA2: u64, 2);
-isolate_var!(static mut MY_DATA3: u64, 3);
+isolate_var!(static MY_DATA2: u64, 2);
+isolate_var!(static MY_DATA3: u64, 3);
 //isolate_var!(static MY_BSS1: u64);
 //isolate_var!(static mut MY_BSS2: u64);
 
@@ -165,6 +165,7 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 	}
 }
 
+/*
 #[cfg(not(test))]
 extern "C" {
 	static mut __bss_start: usize;
@@ -178,6 +179,7 @@ extern "C" {
         static mut __isolated_bss_size: usize;
 */
 }
+*/
 
 /// Helper function to check if uhyve provide an IP device
 fn has_ipdevice() -> bool {
@@ -251,19 +253,21 @@ extern "C" fn initd(_arg: usize) {
             *ptr_p = 12;
             info!("ptr: {:#X}", ptr);
             info!("*ptr: {:#X}", *ptr_p);
+        }
 
             info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
             info!("my_data1 val: {:#X}", MY_DATA1);
 
             info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
             info!("my_data2 val: {:#X}", MY_DATA2);
-            let data_p: *mut u64 = &mut MY_DATA2;
-            *data_p = 5;
+
+            //mpk::mpk_set_perm(mm::UNSAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+            //let data_p: *mut u64 = &mut MY_DATA2;
+            //*data_p = 5;
             info!("my_data2 val: {:#X}", MY_DATA2);
 
             info!("my_data3 addr: {:#X}", &MY_DATA3 as *const u64 as usize);
             info!("my_data3 val: {:#X}", MY_DATA3);
-        }
 
         unsafe {
 		// And finally start the application.
@@ -280,7 +284,8 @@ fn boot_processor_main() -> ! {
 
 	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
 	info!("Kernel starts at 0x{:x}", environment::get_base_address());
-	info!("BSS starts at 0x{:x}", unsafe {
+/*
+        info!("BSS starts at 0x{:x}", unsafe {
 		&__bss_start as *const usize as usize
 	});
         info!("BSS ends at 0x{:x}", unsafe {
@@ -295,7 +300,6 @@ fn boot_processor_main() -> ! {
         info!("isolated_DATA size is {}", unsafe {
 		&__isolated_data_size as *const usize as usize
 	});
-/*
         info!("isolated_BSS starts at 0x{:x}", unsafe {
 		&__isolated_bss_start as *const usize as usize
 	});

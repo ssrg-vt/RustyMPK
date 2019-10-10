@@ -39,17 +39,14 @@ pub const SAFE_MEM_REGION: u8 = 1;
 pub const UNSAFE_MEM_REGION: u8 = 2;
 pub const SHARED_MEM_REGION: u8 = 3;
 
+/*
 #[cfg(not(test))]
 extern "C" {
         static mut __isolated_data_start: usize;
         static mut __isolated_data_end: usize;
         static mut __isolated_data_size: usize;
-/*
-        static mut __isolated_bss_start: usize;
-        static mut __isolated_bss_end: usize;
-        static mut __isolated_bss_size: usize;
-*/
 }
+*/
 
 pub fn kernel_start_address() -> usize {
 	unsafe { KERNEL_START_ADDRESS }
@@ -312,10 +309,13 @@ pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
 }
 
 pub fn allocate_isolated_data() {
-        let isolated_data_start = unsafe {&__isolated_data_start as *const usize as usize};
-        let isolated_data_size = unsafe{&__isolated_data_size as *const usize as usize};
-        let aligned_size = align_up!(isolated_data_size, LargePageSize::SIZE);
-	/* We harcode the physical address here */
+        //let isolated_data_start = unsafe {&__isolated_data_start as *const usize as usize};
+        //let isolated_data_size = unsafe{&__isolated_data_size as *const usize as usize};
+        //let aligned_size = align_up!(isolated_data_size, LargePageSize::SIZE);
+
+        let isolated_data_start = 0x400000usize;
+	let aligned_size = LargePageSize::SIZE;
+        /* We harcode the physical address here */
         let physical_address = 0x400000usize;
         let count = aligned_size / LargePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
@@ -325,21 +325,7 @@ pub fn allocate_isolated_data() {
         mpk::mpk_mem_set_key::<LargePageSize>(isolated_data_start, aligned_size, UNSAFE_MEM_REGION);
         info!("isolated .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", isolated_data_start, physical_address, aligned_size);
 }
-/*
-pub fn allocate_isolated_bss() {
-        let isolated_bss_start = unsafe{&__isolated_bss_start as *const usize as usize};
-        let isolated_bss_size = unsafe{&__isolated_bss_size as *const usize as usize};
-        let aligned_size = align_up!(isolated_bss_size, BasePageSize::SIZE);
-	let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, BasePageSize::SIZE).unwrap();
-	let count = aligned_size / BasePageSize::SIZE;
-	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
-	flags.execute_disable();
-	arch::mm::paging::map::<BasePageSize>(isolated_bss_start, physical_address, count, flags);
-        //mpk::mpk_mem_set_key::<BasePageSize>(isolated_bss_start, aligned_size, UNSAFE_MEM_REGION);
-        info!("isolated_bss_start: {:#X}, physical_address: {:#X}, isolated_bss_size: {:#X}", isolated_bss_start, physical_address, aligned_size);
-}
-*/
+
 pub fn deallocate(virtual_address: usize, sz: usize) {
 	let size = align_up!(sz, BasePageSize::SIZE);
 
