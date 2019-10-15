@@ -82,9 +82,7 @@ use alloc::alloc::Layout;
 use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use mm::allocator::LockedHeap;
-use mm::allocate;
-use mm::unsafe_allocate;
-use mm::shared_allocate;
+use mm::{allocate, unsafe_allocate, shared_allocate, deallocate};
 
 use x86_64::mm::mpk;
 use x86_64::mm::virtualmem;
@@ -101,9 +99,11 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
-isolate_var!(static mut MY_DATA1: u64, 1);
-isolate_var!(static mut MY_DATA2: u64, 2);
-isolate_var!(static mut MY_DATA3: u64);
+static mut MY_DATA1: u64 = 0;
+static mut MY_DATA2: u64 = 1234;
+//isolate_var!(static mut MY_DATA1: u64, 1);
+//isolate_var!(static mut MY_DATA2: u64, 2);
+//isolate_var!(static mut MY_DATA3: u64);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -163,21 +163,21 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 	}
 }
 
-/*
+
 #[cfg(not(test))]
 extern "C" {
 	static mut __bss_start: usize;
 	static mut __bss_end: usize;
-	static mut __isolated_data_start: usize;
-	static mut __isolated_data_end: usize;
-	static mut __isolated_data_size: usize;
+//	static mut __isolated_data_start: usize;
+//	static mut __isolated_data_end: usize;
+//	static mut __isolated_data_size: usize;
 /*
         static mut __isolated_bss_start: usize;
         static mut __isolated_bss_end: usize;
         static mut __isolated_bss_size: usize;
 */
 }
-*/
+
 
 /// Helper function to check if uhyve provide an IP device
 fn has_ipdevice() -> bool {
@@ -234,40 +234,71 @@ extern "C" fn initd(_arg: usize) {
 	core_scheduler().scheduler();
 
 /*
-        let align: usize = 4096;
-        let layout: Layout = Layout::from_size_align(size, align).unwrap();
-        let ptr;
-
-        unsafe {
-                ptr = ALLOCATOR.alloc(layout);
-                mpk::mpk_mem_set_key::<LargePageSize>(ptr as usize, size, mm::SAFE_MEM_REGION);
-                paging::pkey_print::<LargePageSize>(ptr as usize);
-        }
+	let size: usize = 1024;
+	let align: usize =1024;
+	let layout: Layout = Layout::from_size_align(size, align).unwrap();
+	let ptr = unsafe {ALLOCATOR.alloc(layout)};
+	unsafe { 
+		*ptr = 123;
+		info!("ptr: {}", *ptr);
+		info!("ptr addr: {:#X}", ptr as usize);
+		paging::pkey_print::<LargePageSize>(ptr as usize);
+		ALLOCATOR.dealloc(ptr, layout);
+		*ptr = 32;
+		info!("ptr: {}", *ptr);
+		info!("ptr addr: {:#X}", ptr as usize);
+		paging::pkey_print::<LargePageSize>(ptr as usize);
+	}
 */
-        let size: usize = 4096;
-        unsafe {
-                let ptr = isolate_function!(unsafe_allocate(size, true));
-                let ptr_p = ptr as *mut u8;
-                *ptr_p = 12;
-                info!("ptr: {:#X}", ptr);
-                info!("*ptr: {:#X}", *ptr_p);
+/*
+	let addr = isolate_function!(unsafe_allocate(4096, true)); 
+	//let addr = allocate(4096, true);
+	let ptr = addr as *mut u8;
+	unsafe { isolate_pointer!(*ptr = 123); }
+	let val;
+	unsafe { val = isolate_pointer!(*ptr); }
+	paging::pkey_print::<BasePageSize>(addr);
+	info!("addr: {:#X}, val: {:#X}", addr, val);
+*/
+/* 
+	let addr = allocate(4096, true);
+	paging::pkey_print::<BasePageSize>(addr);
+	let ptr = addr as *mut u8;
+	unsafe { *ptr = 1; }
+	deallocate(addr, 4096);
+	paging::pkey_print::<BasePageSize>(addr);
+	unsafe {
+		*ptr = 2;
+		info!("ptr: {}", *ptr);
+	}
+*/
+/*
+	unsafe {
+		info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
+		info!("my_data1 val: {:#X}", MY_DATA1);
+		info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
+		info!("my_data2 val: {:#X}", MY_DATA2);
+	}
+*/
+/*
+	unsafe {
+		info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
+		info!("my_data1 val: {:#X}", MY_DATA1);
 
-                info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
-                info!("my_data1 val: {:#X}", MY_DATA1);
+		info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
+		info!("my_data2 val: {:#X}", MY_DATA2);
 
-                info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
-                info!("my_data2 val: {:#X}", MY_DATA2);
+		//mpk::mpk_set_perm(mm::UNSAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+		let data_p: *mut u64 = &mut MY_DATA2;
+		*data_p = 5;
+		info!("my_data2 val: {:#X}", MY_DATA2);
 
-                //mpk::mpk_set_perm(mm::UNSAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
-                let data_p: *mut u64 = &mut MY_DATA2;
-                *data_p = 5;
-                info!("my_data2 val: {:#X}", MY_DATA2);
+		info!("my_data3 addr: {:#X}", &MY_DATA3 as *const u64 as usize);
+		info!("my_data3 val: {:#X}", MY_DATA3);
+	}
+*/
 
-                info!("my_data3 addr: {:#X}", &MY_DATA3 as *const u64 as usize);
-                info!("my_data3 val: {:#X}", MY_DATA3);
-        }
-
-        unsafe {
+	unsafe {
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}
@@ -282,13 +313,14 @@ fn boot_processor_main() -> ! {
 
 	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
 	info!("Kernel starts at 0x{:x}", environment::get_base_address());
-/*
+
         info!("BSS starts at 0x{:x}", unsafe {
 		&__bss_start as *const usize as usize
 	});
         info!("BSS ends at 0x{:x}", unsafe {
 		&__bss_end as *const usize as usize
 	});
+/*
         info!("isolated_DATA starts at 0x{:x}", unsafe {
 		&__isolated_data_start as *const usize as usize
 	});

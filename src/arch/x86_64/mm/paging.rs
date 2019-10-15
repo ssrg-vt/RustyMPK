@@ -107,6 +107,13 @@ impl PageTableEntryFlags {
 		self.insert(PageTableEntryFlags::EXECUTE_DISABLE);
 		self
 	}
+
+        pub fn pkey(&mut self, key: u8) -> &mut Self {
+		let pkey: usize = (key as usize)& 15;
+                let pkey_flag: PageTableEntryFlags = PageTableEntryFlags { bits: (pkey << 59) };
+		self.insert(pkey_flag);
+                self
+	}
 }
 
 /// An entry in either table (PML4, PDPT, PD, PT)

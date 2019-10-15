@@ -44,6 +44,7 @@ SECTIONS {
 		__isolated_data_start = .;
 		*(.isolated_data)
 		*(.isolated_data.*)
+		. = 0x600000;
 		__isolated_data_end = .;
 		__isolated_data_size = __isolated_data_end - __isolated_data_start;
 	}

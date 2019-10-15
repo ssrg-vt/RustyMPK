@@ -59,6 +59,27 @@ macro_rules! isolate_var {
 */
 }
 
+macro_rules! isolate_pointer {
+    /* write on a raw pointer */
+    (*$name:ident = $val:expr) => {{
+        use x86_64::mm::mpk;
+        use mm::SAFE_MEM_REGION;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+        *$name = $val;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkRw);
+    }};
+
+    /* read on a raw pointer */ 
+    (*$name:ident) => {{
+        use x86_64::mm::mpk;
+        use mm::SAFE_MEM_REGION;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
+        let temp_val = *$name;
+        mpk::mpk_set_perm(SAFE_MEM_REGION, mpk::MpkPerm::MpkRw);
+        temp_val
+    }};
+}
+
 macro_rules! isolate_function_no_ret {
     ($f:ident($($x:tt)*)) => {{
         use x86_64::mm::mpk;

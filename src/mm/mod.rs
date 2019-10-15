@@ -70,13 +70,24 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 	let mut i: usize = 0;
 	let mut flags = PageTableEntryFlags::empty();
 
-	flags.normal().writable().execute_disable();
+        if virt_addr == 0x600000 {
+            info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+	    //flags.normal().writable().execute_disable();
+	    flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+        }
+        else {
+            info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+	    flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+        }
 
 	while i < align_down!(size, S::SIZE) {
 		match arch::mm::physicalmem::allocate_aligned(S::SIZE, S::SIZE) {
 			Ok(phys_addr) => {
 				arch::mm::paging::map::<S>(virt_addr + i, phys_addr, 1, flags);
-				i += S::SIZE;
+                                /* Set pages as safe memory region */
+                                //arch::mm::paging::pkey_print::<S>(virt_addr+i);
+                                //mpk::mpk_mem_set_key::<S>(virt_addr + i, S::SIZE, SAFE_MEM_REGION);
+                                i += S::SIZE;
 			}
 			Err(_) => {
 				error!("Unable to allocate page frame of size 0x{:x}", S::SIZE);
@@ -114,7 +125,7 @@ pub fn init() {
 	let npage_2tables = npage_3tables / (BasePageSize::SIZE / mem::align_of::<usize>()) + 1;
 	let npage_1tables = npage_2tables / (BasePageSize::SIZE / mem::align_of::<usize>()) + 1;
 	let reserved_space =
-		(npage_3tables + npage_2tables + npage_1tables) * BasePageSize::SIZE + LargePageSize::SIZE;
+		(npage_3tables + npage_2tables + npage_1tables) * BasePageSize::SIZE + 2*LargePageSize::SIZE;
 	let has_1gib_pages = arch::processor::supports_1gib_pages();
 
 	//info!("reserved space {} KB", reserved_space >> 10);
@@ -317,6 +328,7 @@ pub fn allocate_isolated_data() {
 	let aligned_size = LargePageSize::SIZE;
         /* We harcode the physical address here */
         let physical_address = 0x400000usize;
+        //let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, LargePageSize::SIZE).unwrap();
         let count = aligned_size / LargePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
 	flags.normal().writable();
