@@ -23,8 +23,8 @@ use scheduler::task::{Task, TaskFrame, TaskTLS};
 
 #[repr(C, packed)]
 struct State {
-        /// PKRU
-        pkru: usize,
+    /// PKRU
+    pkru: usize,
 	/// FS register for TLS support
 	fs: usize,
 	/// R15 register
@@ -69,6 +69,8 @@ pub struct TaskStacks {
 	is_boot_stack: bool,
 	/// Stack of the task
 	pub stack: usize,
+	/// Isolated stack of the task
+	pub isolated_stack: usize,
 }
 
 impl TaskStacks {
@@ -77,9 +79,13 @@ impl TaskStacks {
 		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, false);
 		info!("Allocating stack {:#X}, size: {}", stack, DEFAULT_STACK_SIZE);
 
+		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, false);
+		info!("Allocating isolated_stack {:#X}, size: {}", isolated_stack, DEFAULT_STACK_SIZE);
+
 		Self {
 			is_boot_stack: false,
 			stack: stack,
+			isolated_stack: isolated_stack,
 		}
 	}
 
@@ -90,6 +96,8 @@ impl TaskStacks {
 		Self {
 			is_boot_stack: true,
 			stack: stack,
+			//FIXME
+			isolated_stack: 0x0usize,
 		}
 	}
 }
@@ -100,6 +108,10 @@ impl Drop for TaskStacks {
 			debug!("Deallocating stack {:#X}", self.stack);
 
 			::mm::deallocate(self.stack, DEFAULT_STACK_SIZE);
+
+			debug!("Deallocating isolated_stack {:#X}", self.stack);
+
+			::mm::deallocate(self.isolated_stack, DEFAULT_STACK_SIZE);
 		}
 	}
 }

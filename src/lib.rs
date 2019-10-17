@@ -99,11 +99,8 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
-static mut MY_DATA1: u64 = 0;
-static mut MY_DATA2: u64 = 1234;
-//isolate_var!(static mut MY_DATA1: u64, 1);
-//isolate_var!(static mut MY_DATA2: u64, 2);
-//isolate_var!(static mut MY_DATA3: u64);
+
+isolate_var!(static mut unsafe_var: usize);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -233,75 +230,21 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-/*
-	let size: usize = 1024;
-	let align: usize =1024;
-	let layout: Layout = Layout::from_size_align(size, align).unwrap();
-	let ptr = unsafe {ALLOCATOR.alloc(layout)};
-	unsafe { 
-		*ptr = 123;
-		info!("ptr: {}", *ptr);
-		info!("ptr addr: {:#X}", ptr as usize);
-		paging::pkey_print::<LargePageSize>(ptr as usize);
-		ALLOCATOR.dealloc(ptr, layout);
-		*ptr = 32;
-		info!("ptr: {}", *ptr);
-		info!("ptr addr: {:#X}", ptr as usize);
-		paging::pkey_print::<LargePageSize>(ptr as usize);
-	}
-*/
-/*
-	let addr = isolate_function!(unsafe_allocate(4096, true)); 
-	//let addr = allocate(4096, true);
-	let ptr = addr as *mut u8;
-	unsafe { isolate_pointer!(*ptr = 123); }
-	let val;
-	unsafe { val = isolate_pointer!(*ptr); }
-	paging::pkey_print::<BasePageSize>(addr);
-	info!("addr: {:#X}, val: {:#X}", addr, val);
-*/
-/* 
-	let addr = allocate(4096, true);
-	paging::pkey_print::<BasePageSize>(addr);
-	let ptr = addr as *mut u8;
-	unsafe { *ptr = 1; }
-	deallocate(addr, 4096);
-	paging::pkey_print::<BasePageSize>(addr);
 	unsafe {
-		*ptr = 2;
-		info!("ptr: {}", *ptr);
-	}
-*/
-/*
-	unsafe {
-		info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
-		info!("my_data1 val: {:#X}", MY_DATA1);
-		info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
-		info!("my_data2 val: {:#X}", MY_DATA2);
-	}
-*/
-/*
-	unsafe {
-		info!("my_data1 addr: {:#X}", &MY_DATA1 as *const u64 as usize);
-		info!("my_data1 val: {:#X}", MY_DATA1);
+		let ptr = &mut unsafe_var as *mut usize;
+		isolate_function_no_ret!(unsafe_function(ptr));
+		//info!("unsafe_var: {}", unsafe_var);
 
-		info!("my_data2 addr: {:#X}", &MY_DATA2 as *const u64 as usize);
-		info!("my_data2 val: {:#X}", MY_DATA2);
-
-		//mpk::mpk_set_perm(mm::UNSAFE_MEM_REGION, mpk::MpkPerm::MpkNone);
-		let data_p: *mut u64 = &mut MY_DATA2;
-		*data_p = 5;
-		info!("my_data2 val: {:#X}", MY_DATA2);
-
-		info!("my_data3 addr: {:#X}", &MY_DATA3 as *const u64 as usize);
-		info!("my_data3 val: {:#X}", MY_DATA3);
 	}
-*/
 
 	unsafe {
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}
+}
+unsafe fn unsafe_function(ptr: *mut usize)
+{
+	*ptr = *ptr+1;
 }
 
 /// Entry Point of HermitCore for the Boot Processor

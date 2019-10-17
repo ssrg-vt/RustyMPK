@@ -72,8 +72,8 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 
         if virt_addr == 0x600000 {
             info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-	    //flags.normal().writable().execute_disable();
-	    flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+	    flags.normal().writable().execute_disable();
+	    //flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
         }
         else {
             info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
@@ -271,14 +271,11 @@ pub fn allocate(sz: usize, execute_disable: bool) -> usize {
 
 	let count = size / BasePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
+	flags.normal().writable().pkey(SAFE_MEM_REGION);
 	if execute_disable {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-        if execute_disable {
-            mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, SAFE_MEM_REGION);
-        }
 
 	virtual_address
 }
@@ -291,12 +288,11 @@ pub fn unsafe_allocate(sz: usize, execute_disable: bool) -> usize {
 
 	let count = size / BasePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
+	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
 	if execute_disable {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-        mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, UNSAFE_MEM_REGION);
 
 	virtual_address
 }
@@ -309,12 +305,11 @@ pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
 
 	let count = size / BasePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
+	flags.normal().writable().pkey(SHARED_MEM_REGION);
 	if execute_disable {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-        mpk::mpk_mem_set_key::<BasePageSize>(virtual_address, size, SHARED_MEM_REGION);
 
 	virtual_address
 }
@@ -331,11 +326,10 @@ pub fn allocate_isolated_data() {
         //let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, LargePageSize::SIZE).unwrap();
         let count = aligned_size / LargePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
+	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
 	flags.execute_disable();
-        arch::mm::paging::map::<LargePageSize>(isolated_data_start, physical_address, count, flags);
-        mpk::mpk_mem_set_key::<LargePageSize>(isolated_data_start, aligned_size, UNSAFE_MEM_REGION);
-        info!("isolated .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", isolated_data_start, physical_address, aligned_size);
+	arch::mm::paging::map::<LargePageSize>(isolated_data_start, physical_address, count, flags);
+	info!("isolated .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", isolated_data_start, physical_address, aligned_size);
 }
 
 pub fn deallocate(virtual_address: usize, sz: usize) {
