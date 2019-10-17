@@ -111,9 +111,11 @@ pub fn init() {
 			environment::get_base_address() + environment::get_image_size(),
 			arch::mm::paging::LargePageSize::SIZE
 		);
+		// Protect kernel memory with a protection key
+		mpk::mpk_mem_set_key::<LargePageSize>(KERNEL_START_ADDRESS, LargePageSize::SIZE, SAFE_MEM_REGION);
 	}
 
-        arch::mm::init();
+    arch::mm::init();
 	arch::mm::init_page_tables();
 
 	info!("Total memory size: {} MB", total_memory_size() >> 20);
@@ -138,11 +140,11 @@ pub fn init() {
 		}
 	}
 
-        /* Init isolated .data section */
-        allocate_isolated_data();
-        //allocate_isolated_bss();
+	/* Init isolated .data section */
+	allocate_isolated_data();
+	//allocate_isolated_bss();
 
-        let mut map_addr: usize;
+	let mut map_addr: usize;
 	let mut map_size: usize;
 
 	#[cfg(feature = "newlib")]

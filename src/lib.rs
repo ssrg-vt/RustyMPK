@@ -99,6 +99,7 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
+isolate_var!(static mut global_var: usize = 0xDEAD_BEEF);
 isolate_var!(static mut unsafe_global_var: usize);
 
 /// Interface to allocate memory from system heap
@@ -229,11 +230,12 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	let addr = unsafe_allocate(4096, true);
+	//let addr = unsafe_allocate(4096, true);
+	//let ptr = addr as *mut usize;
 	unsafe {
-		info!("before ptr: {}", *(addr as *mut usize));
-		isolate_function_no_ret!(unsafe_function(addr as *mut usize));
-		info!("after ptr: {}", *(addr as *mut usize));
+		info!("before: {:#X}", global_var);
+		isolate_function_no_ret!(unsafe_function(&mut global_var as *mut usize));
+		info!("after : {:#X}", global_var);
 	}
 
 	unsafe {
