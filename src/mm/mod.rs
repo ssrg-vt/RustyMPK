@@ -71,13 +71,13 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 	let mut flags = PageTableEntryFlags::empty();
 
         if virt_addr == 0x600000 {
-            info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-	    flags.normal().writable().execute_disable();
-	    //flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+            //info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+	    	flags.normal().writable().execute_disable();
+	    	//flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
         }
         else {
-            info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-	    flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+        	//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+	    	flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
         }
 
 	while i < align_down!(size, S::SIZE) {
@@ -315,16 +315,12 @@ pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
 }
 
 pub fn allocate_isolated_data() {
-        //let isolated_data_start = unsafe {&__isolated_data_start as *const usize as usize};
-        //let isolated_data_size = unsafe{&__isolated_data_size as *const usize as usize};
-        //let aligned_size = align_up!(isolated_data_size, LargePageSize::SIZE);
-
-        let isolated_data_start = 0x400000usize;
+    let isolated_data_start = 0x400000usize;
 	let aligned_size = LargePageSize::SIZE;
-        /* We harcode the physical address here */
-        let physical_address = 0x400000usize;
-        //let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, LargePageSize::SIZE).unwrap();
-        let count = aligned_size / LargePageSize::SIZE;
+	/* We harcode the physical address here */
+	let physical_address = 0x400000usize;
+	//let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, LargePageSize::SIZE).unwrap();
+	let count = aligned_size / LargePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
 	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
 	flags.execute_disable();

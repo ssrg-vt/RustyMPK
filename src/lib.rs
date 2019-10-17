@@ -99,8 +99,7 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
-
-isolate_var!(static mut unsafe_var: usize);
+isolate_var!(static mut unsafe_global_var: usize);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -165,13 +164,13 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 extern "C" {
 	static mut __bss_start: usize;
 	static mut __bss_end: usize;
-//	static mut __isolated_data_start: usize;
-//	static mut __isolated_data_end: usize;
-//	static mut __isolated_data_size: usize;
 /*
-        static mut __isolated_bss_start: usize;
-        static mut __isolated_bss_end: usize;
-        static mut __isolated_bss_size: usize;
+	static mut __isolated_data_start: usize;
+	static mut __isolated_data_end: usize;
+	static mut __isolated_data_size: usize;
+	static mut __isolated_bss_start: usize;
+	static mut __isolated_bss_end: usize;
+	static mut __isolated_bss_size: usize;
 */
 }
 
@@ -230,11 +229,11 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
+	let addr = unsafe_allocate(4096, true);
 	unsafe {
-		let ptr = &mut unsafe_var as *mut usize;
-		isolate_function_no_ret!(unsafe_function(ptr));
-		//info!("unsafe_var: {}", unsafe_var);
-
+		info!("before ptr: {}", *(addr as *mut usize));
+		isolate_function_no_ret!(unsafe_function(addr as *mut usize));
+		info!("after ptr: {}", *(addr as *mut usize));
 	}
 
 	unsafe {
@@ -244,7 +243,7 @@ extern "C" fn initd(_arg: usize) {
 }
 unsafe fn unsafe_function(ptr: *mut usize)
 {
-	*ptr = *ptr+1;
+	*ptr = 12345678;
 }
 
 /// Entry Point of HermitCore for the Boot Processor
