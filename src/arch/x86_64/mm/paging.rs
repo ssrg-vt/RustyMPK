@@ -108,11 +108,11 @@ impl PageTableEntryFlags {
 		self
 	}
 
-        pub fn pkey(&mut self, key: u8) -> &mut Self {
+	pub fn pkey(&mut self, key: u8) -> &mut Self {
 		let pkey: usize = (key as usize)& 15;
-                let pkey_flag: PageTableEntryFlags = PageTableEntryFlags { bits: (pkey << 59) };
+		let pkey_flag: PageTableEntryFlags = PageTableEntryFlags { bits: (pkey << 59) };
 		self.insert(pkey_flag);
-                self
+		self
 	}
 }
 
@@ -255,9 +255,7 @@ impl<S: PageSize> Page<S> {
 
 	/// Flushes this page from the TLB of this CPU.
 	fn flush_from_tlb(self) {
-		unsafe {
-			asm!("invlpg ($0)" :: "r"(self.virtual_address) : "memory" : "volatile");
-		}
+		unsafe {asm!("invlpg ($0)" :: "r"(self.virtual_address) : "memory" : "volatile");}
 	}
 
 	/// Returns whether the given virtual address is a valid one in the x86-64 memory model.
@@ -396,6 +394,7 @@ struct PageTable<L> {
 /// implementation of some methods.
 trait PageTableMethods {
 	fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry>;
+	fn set_page_table_entry<S: PageSize>(&mut self, page: Page<S>, entry: usize);
 	fn map_page_in_this_table<S: PageSize>(
 		&mut self,
 		page: Page<S>,
@@ -444,13 +443,32 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 	default fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL == S::MAP_LEVEL);
 		let index = page.table_index::<L>();
-                //info!("index: {:#X}, entry: {:#X}, addr: {:#X}", index,self.entries[index].physical_address_and_flags, self.entries[index].address());
-                //error!("{} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user());
-
+    /*
+		error!("table level: {} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}",
+		L::LEVEL, index, self.entries[index].physical_address_and_flags,
+		self.entries[index].address(), self.entries[index].is_user(),
+		self.entries[index].is_present());
+	*/
 		if self.entries[index].is_present() {
-                        Some(self.entries[index])
+			Some(self.entries[index])
 		} else {
 			None
+		}
+	}
+
+	default fn set_page_table_entry<S: PageSize>(&mut self, page: Page<S>, entry: usize) {
+		assert!(L::LEVEL == S::MAP_LEVEL);
+		let index = page.table_index::<L>();
+    /*
+		error!("table level: {} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}",
+		L::LEVEL, index, self.entries[index].physical_address_and_flags,
+		self.entries[index].address(), self.entries[index].is_user(),
+		self.entries[index].is_present());
+	*/
+		if self.entries[index].is_present() {
+			self.entries[index].physical_address_and_flags = entry;
+		} else {
+			panic!("Level {} entry is not present!!", L::LEVEL);
 		}
 	}
 
@@ -480,7 +498,7 @@ where
 	fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry> {
 		assert!(L::LEVEL >= S::MAP_LEVEL);
 		let index = page.table_index::<L>();
-                //error!("{} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}", L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user());
+		//error!("MAP_LEVEL: {}, table LEVEL: {}, index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}", S::MAP_LEVEL, L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user(), self.entries[index].is_present());
 
 		if self.entries[index].is_present() {
 			if L::LEVEL > S::MAP_LEVEL {
@@ -491,6 +509,23 @@ where
 			}
 		} else {
 			None
+		}
+	}
+
+	fn set_page_table_entry<S: PageSize>(&mut self, page: Page<S>, entry: usize) {
+		assert!(L::LEVEL >= S::MAP_LEVEL);
+		let index = page.table_index::<L>();
+		//error!("MAP_LEVEL: {}, table LEVEL: {}, index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}", S::MAP_LEVEL, L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user(), self.entries[index].is_present());
+
+		if self.entries[index].is_present() {
+			if L::LEVEL > S::MAP_LEVEL {
+				let subtable = self.subtable::<S>(page);
+				subtable.set_page_table_entry::<S>(page, entry);
+			} else {
+				self.entries[index].physical_address_and_flags = entry;
+			}
+		} else {
+			panic!("Level {} entry is not present!!", L::LEVEL);
 		}
 	}
 
@@ -607,12 +642,12 @@ pub fn get_existing_flags<S: PageSize>(virtual_address: usize) -> usize {
     }
 }
 
-pub fn pkey_print<S: PageSize>(virtual_address: usize) -> usize {
+pub fn print_page_table_entry<S: PageSize>(virtual_address: usize) -> usize {
     let entry: PageTableEntry;
-    error!("[pkey_print]v address: {:#X} p address: {:#X}", virtual_address, get_physical_address::<S>(virtual_address));
+    //error!("[pkey_print]v address: {:#X} p address: {:#X}", virtual_address, get_physical_address::<S>(virtual_address));
     if let Some(result) = get_page_table_entry::<S>(virtual_address) {
         entry = result as PageTableEntry;
-        error!("virtual: {:#X}, physical: {:#X}, page table entry: {:#X}", virtual_address, virt_to_phys(virtual_address), entry.physical_address_and_flags);
+        error!("[print pte]virt: {:#X}, phys1: {:#X}, phys2: {:#X}, PTE: {:#X}", virtual_address, virt_to_phys(virtual_address), get_physical_address::<S>(virtual_address), entry.physical_address_and_flags);
     } else {
         panic!("No page table entry for virtual address {:#X}", virtual_address);
     }
@@ -644,9 +679,7 @@ pub extern "x86-interrupt" fn page_fault_handler(
 	);
 
 	// clear cr2 to signalize that the pagefault is solved by the pagefault handler
-	unsafe {
-		controlregs::cr2_write(0);
-	}
+	unsafe {controlregs::cr2_write(0);}
 
 	scheduler::abort();
 }
@@ -664,6 +697,14 @@ pub fn get_page_table_entry<S: PageSize>(virtual_address: usize) -> Option<PageT
 	let page = Page::<S>::including_address(virtual_address);
 	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
 	root_pagetable.get_page_table_entry(page)
+}
+
+pub fn set_page_table_entry<S: PageSize>(virtual_address: usize, entry: usize) {
+	trace!("Looking up Page Table Entry for {:#X}", virtual_address);
+
+	let page = Page::<S>::including_address(virtual_address);
+	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
+	root_pagetable.set_page_table_entry(page, entry);
 }
 
 pub fn get_physical_address<S: PageSize>(virtual_address: usize) -> usize {
@@ -748,7 +789,8 @@ pub fn identity_map(start_address: usize, end_address: usize) {
 	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
 	let range = Page::<BasePageSize>::range(first_page, last_page);
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().read_only().execute_disable();
+	// Protect pages with the protection key
+	flags.normal().read_only().execute_disable().pkey(::mm::SAFE_MEM_REGION);
 	root_pagetable.map_pages(range, first_page.address(), flags);
 }
 
@@ -762,53 +804,64 @@ pub fn init() {}
 pub fn init_page_tables() {
 	debug!("Create new view to the kernel space");
 
+	let pml4 = unsafe {controlregs::cr3()};
+	let pde = pml4 + 2 * BasePageSize::SIZE as u64;
+
+	/* 
+	 * Set pkey on the page that contains PML4
+	 * As RustyHermitCore has a single page for all levels of page tables using Recursive Page Tables
+	 * It recursively walks through the lower level of the page tables through "subtable".
+	 * So we only need to set the pkey on the physical frame mapped with PML4_ADDRESS
+	 */
+
+	let pkey = ::mm::SAFE_MEM_REGION as usize;
+	let new_flag = (pkey << 59) | get_existing_flags::<BasePageSize>(PML4_ADDRESS as usize);
+	let page_table_address = get_physical_address::<BasePageSize>(PML4_ADDRESS as usize);
+	set_page_table_entry::<BasePageSize>(PML4_ADDRESS as usize, page_table_address | new_flag);
+
+
+	debug!("Found PML4 at 0x{:x}", pml4);
+
+	// make sure that only the required areas are mapped
+	let start = pde
+		+ ((mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)) * mem::size_of::<u64>())
+			as u64;
+	let size = (512 - (mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)))
+		* mem::size_of::<u64>();
 	unsafe {
-		let pml4 = controlregs::cr3();
-		let pde = pml4 + 2 * BasePageSize::SIZE as u64;
-
-		debug!("Found PML4 at 0x{:x}", pml4);
-
-		// make sure that only the required areas are mapped
-		let start = pde
-			+ ((mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)) * mem::size_of::<u64>())
-				as u64;
-		let size = (512 - (mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)))
-			* mem::size_of::<u64>();
 		ptr::write_bytes(start as *mut u8, 0, size);
-
 		//let size = (mm::kernel_start_address() >> (PAGE_MAP_BITS + PAGE_BITS)) * mem::size_of::<u64>();
 		//ptr::write_bytes(pde as *mut u8, 0, size);
-
 		// flush tlb
 		controlregs::cr3_write(pml4);
+	}
 
-		/*if is_uhyve() {
-			// we need to map GDT from hypervisor
-			identity_map(BOOT_GDT, BOOT_GDT);
-		}*/
+	/*if is_uhyve() {
+		// we need to map GDT from hypervisor
+		identity_map(BOOT_GDT, BOOT_GDT);
+	}*/
 
-		// Identity-map the supplied Multiboot information and command line.
-		let mb_info = get_mbinfo();
-		if mb_info > 0 {
-			info!("Found Multiboot info at 0x{:x}", mb_info);
-			identity_map(mb_info, mb_info);
+	// Identity-map the supplied Multiboot information and command line.
+	let mb_info = get_mbinfo();
+	if mb_info > 0 {
+		info!("Found Multiboot info at 0x{:x}", mb_info);
+		identity_map(mb_info, mb_info);
 
-			// Map the "Memory Map" information too.
-			let mb = Multiboot::new(mb_info as u64, paddr_to_slice).unwrap();
-			let memory_map_address = mb
-				.memory_regions()
-				.expect("Could not find a memory map in the Multiboot information")
-				.next()
-				.expect("Could not first map address")
-				.base_address() as usize;
-			identity_map(memory_map_address, memory_map_address);
-		}
+		// Map the "Memory Map" information too.
+		let mb = unsafe {Multiboot::new(mb_info as u64, paddr_to_slice).unwrap()};
+		let memory_map_address = mb
+			.memory_regions()
+			.expect("Could not find a memory map in the Multiboot information")
+			.next()
+			.expect("Could not first map address")
+			.base_address() as usize;
+		identity_map(memory_map_address, memory_map_address);
+	}
 
-		let cmdsize = environment::get_cmdsize();
-		if cmdsize > 0 {
-			let cmdline = environment::get_cmdline();
-			info!("Found cmdline at 0x{:x} (size {})", cmdline, cmdsize);
-			identity_map(cmdline, cmdline + cmdsize - 1);
-		}
+	let cmdsize = environment::get_cmdsize();
+	if cmdsize > 0 {
+		let cmdline = environment::get_cmdline();
+		info!("Found cmdline at 0x{:x} (size {})", cmdline, cmdsize);
+		identity_map(cmdline, cmdline + cmdsize - 1);
 	}
 }

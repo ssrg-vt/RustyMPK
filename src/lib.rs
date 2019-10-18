@@ -84,12 +84,14 @@ use core::alloc::GlobalAlloc;
 use mm::allocator::LockedHeap;
 use mm::{allocate, unsafe_allocate, shared_allocate, deallocate};
 
+/*
 use x86_64::mm::mpk;
 use x86_64::mm::virtualmem;
 use x86_64::mm::physicalmem;
 use x86_64::mm::paging;
 use x86_64::mm::paging::{BasePageSize, LargePageSize, PageTableEntryFlags};
 use core::ptr;
+*/
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -233,9 +235,11 @@ extern "C" fn initd(_arg: usize) {
 	//let addr = unsafe_allocate(4096, true);
 	//let ptr = addr as *mut usize;
 	unsafe {
-		info!("before: {:#X}", global_var);
-		isolate_function_no_ret!(unsafe_function(&mut global_var as *mut usize));
-		info!("after : {:#X}", global_var);
+		let addr = isolate_function!(unsafe_allocate(4096, true));
+		let ptr = addr as *mut usize;
+		info!("before: {:#X}", *ptr);
+		isolate_function_no_ret!(unsafe_function(ptr));
+		info!("after : {:#X}", *ptr);
 	}
 
 	unsafe {
