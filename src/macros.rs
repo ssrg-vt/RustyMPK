@@ -133,7 +133,8 @@ macro_rules! isolate_function_no_ret {
 			: "rbp", "rsp"
 			: "volatile");
 
-		__count = (__current_rbp - CURRENT_STACK_POINTER)/4096 + 1;
+		/* Calculate the number of pages of the current stack frame */
+		__count = align_up!(__current_rbp - CURRENT_STACK_POINTER, 4096)/4096;
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
 		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SHARED_MEM_REGION);
 
@@ -186,7 +187,7 @@ macro_rules! isolate_function {
 			: "rbp", "rsp"
 			: "volatile");
 
-		__count = (__current_rbp - CURRENT_STACK_POINTER)/4096 + 1;
+		__count = align_up!(__current_rbp - CURRENT_STACK_POINTER, 4096)/4096;
 		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SHARED_MEM_REGION);
 
 		asm!("mov $0, %rsp;
