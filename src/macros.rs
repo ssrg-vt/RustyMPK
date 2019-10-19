@@ -118,25 +118,25 @@ macro_rules! isolate_function_weak {
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::mpk::mpk_mem_set_key;
 		use x86_64::mm::paging::BasePageSize;
-		use scheduler::CURRENT_STACK_POINTER;
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
 
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rbp: usize = 0;
+		let mut __current_rsp: usize = 0;
 		let mut __count:usize = 0;
 
 		/* We get the address of current stack frame and calculate size of the stack frame. */
 		asm!("mov %rbp, $0;
 			  mov %rsp, $1"
-			: "=r"(__current_rbp), "=r"(CURRENT_STACK_POINTER)
+			: "=r"(__current_rbp), "=r"(__current_rsp)
 			:
 			: "rbp", "rsp"
 			: "volatile");
 
 		/* Calculate the number of pages of the current stack frame */
-		__count = align_up!(__current_rbp - CURRENT_STACK_POINTER, 4096)/4096;
+		__count = (align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096))/4096;
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
-		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SHARED_MEM_REGION);
+		mpk_mem_set_key::<BasePageSize>(__current_rsp, __count, SHARED_MEM_REGION);
 
 		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
@@ -159,10 +159,10 @@ macro_rules! isolate_function_weak {
 			  lfence;
 			  mov $0, %rsp"
 			:
-			: "r"(CURRENT_STACK_POINTER)
+			: "r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
-		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SAFE_MEM_REGION);
+		mpk_mem_set_key::<BasePageSize>(__current_rsp, __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
 }
@@ -174,25 +174,25 @@ macro_rules! isolate_function_weak {
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::mpk::mpk_mem_set_key;
 		use x86_64::mm::paging::BasePageSize;
-		use scheduler::CURRENT_STACK_POINTER;
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
 
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rbp: usize = 0;
+		let mut __current_rsp: usize = 0;
 		let mut __count:usize = 0;
 
 		/* We get the address of current stack frame and calculate size of the stack frame. */
 		asm!("mov %rbp, $0;
 			  mov %rsp, $1"
-			: "=r"(__current_rbp), "=r"(CURRENT_STACK_POINTER)
+			: "=r"(__current_rbp), "=r"(__current_rsp)
 			:
 			: "rbp", "rsp"
 			: "volatile");
 
 		/* Calculate the number of pages of the current stack frame */
-		__count = align_up!(__current_rbp - CURRENT_STACK_POINTER, 4096)/4096;
+		__count = (align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096))/4096;
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
-		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SHARED_MEM_REGION);
+		mpk_mem_set_key::<BasePageSize>(__current_rsp, __count, SHARED_MEM_REGION);
 
 		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
@@ -215,10 +215,10 @@ macro_rules! isolate_function_weak {
 			  lfence;
 			  mov $0, %rsp"
 			:
-			: "r"(CURRENT_STACK_POINTER)
+			: "r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
-		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SAFE_MEM_REGION);
+		mpk_mem_set_key::<BasePageSize>(__current_rsp, __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
 }
