@@ -232,14 +232,10 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	//let addr = unsafe_allocate(4096, true);
-	//let ptr = addr as *mut usize;
+	let addr = unsafe_allocate(4096, true);
+	//let mut safe_local_var: usize = 54321; 
 	unsafe {
-		let addr = isolate_function!(unsafe_allocate(4096, true));
-		let ptr = addr as *mut usize;
-		info!("before: {:#X}", *ptr);
-		isolate_function_no_ret!(unsafe_function(ptr));
-		info!("after : {:#X}", *ptr);
+		isolate_function_no_ret!(unsafe_function(addr as *mut usize));
 	}
 
 	unsafe {
@@ -249,7 +245,7 @@ extern "C" fn initd(_arg: usize) {
 }
 unsafe fn unsafe_function(ptr: *mut usize)
 {
-	*ptr = 12345678;
+	*ptr = 0xDEAD_BEEF;
 }
 
 /// Entry Point of HermitCore for the Boot Processor

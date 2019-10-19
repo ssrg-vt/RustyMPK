@@ -111,69 +111,143 @@ macro_rules! isolate_pointer {
     }};
 }
 
+#[cfg(feature = "shm")]
 macro_rules! isolate_function_no_ret {
-    ($f:ident($($x:tt)*)) => {{
-	    use x86_64::kernel::percore::core_scheduler;
-        use scheduler;
-        let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		use scheduler;
+		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+		info!("shm enabled");
 
 		asm!("mov %rsp, $0;
-              mov $1, %rsp;
-			  mov $$0xC, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+			mov $1, %rsp;
+			mov $$0xC, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			: "=r"(scheduler::SAFE_STACK_POINTER)
 			: "r"(__isolated_stack)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
-        $f($($x)*);
+		$f($($x)*);
 
-        asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence;
-			  mov $0, %rsp"
+		asm!("xor %eax, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence;
+			mov $0, %rsp"
 			:
 			: "r"(scheduler::SAFE_STACK_POINTER)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
-    }};
+	}};
 }
 
+#[cfg(feature = "shm")]
 macro_rules! isolate_function {
-    ($f:ident($($x:tt)*)) => {{
-	    use x86_64::kernel::percore::core_scheduler;
-        use scheduler;
-        let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		use scheduler;
+		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+		info!("shm enabled");
 
 		asm!("mov %rsp, $0;
-              mov $1, %rsp;
-			  mov $$0xC, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+			mov $1, %rsp;
+			mov $$0xC, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			: "=r"(scheduler::SAFE_STACK_POINTER)
 			: "r"(__isolated_stack)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
-        let temp_ret = $f($($x)*);
+		let temp_ret = $f($($x)*);
 
-        asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence;
-			  mov $0, %rsp"
+		asm!("xor %eax, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence;
+			mov $0, %rsp"
 			:
 			: "r"(scheduler::SAFE_STACK_POINTER)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
-        temp_ret
-    }};
+		temp_ret
+	}};
+}
+
+
+#[cfg(not(feature = "shm"))]
+macro_rules! isolate_function_no_ret {
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		use scheduler;
+		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+
+		asm!("mov %rsp, $0;
+			mov $1, %rsp;
+			mov $$0xC, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
+			: "=r"(scheduler::SAFE_STACK_POINTER)
+			: "r"(__isolated_stack)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+
+		$f($($x)*);
+
+		asm!("xor %eax, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence;
+			mov $0, %rsp"
+			:
+			: "r"(scheduler::SAFE_STACK_POINTER)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+	}};
+}
+
+#[cfg(not(feature = "shm"))]
+macro_rules! isolate_function {
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		use scheduler;
+		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+
+		asm!("mov %rsp, $0;
+			mov $1, %rsp;
+			mov $$0xC, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
+			: "=r"(scheduler::SAFE_STACK_POINTER)
+			: "r"(__isolated_stack)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+
+		let temp_ret = $f($($x)*);
+
+		asm!("xor %eax, %eax;
+			xor %ecx, %ecx;
+			xor %edx, %edx;
+			wrpkru;
+			lfence;
+			mov $0, %rsp"
+			:
+			: "r"(scheduler::SAFE_STACK_POINTER)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+		temp_ret
+	}};
 }
