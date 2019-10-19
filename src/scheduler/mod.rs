@@ -33,7 +33,7 @@ static mut TASKS: Option<SpinlockIrqSave<BTreeMap<TaskId, Rc<RefCell<Task>>>>> =
 static TID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Safe region stack pointer
-isolate_var!(pub static mut SAFE_STACK_POINTER: usize);
+isolate_var!(pub static mut CURRENT_STACK_POINTER: usize);
 
 struct SchedulerState {
 	/// Queue of tasks, which are ready

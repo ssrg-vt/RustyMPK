@@ -17,6 +17,13 @@ else
 RM := rm -rf
 endif
 
+FEATURES :=
+# To enable the memory sharing, 
+# do $export SHM=1 on the command line
+ifdef SHM
+FEATURES := --features shm
+endif
+
 .PHONY: all loader qemu tests clippy clean lib docs
 
 default: lib
@@ -46,4 +53,4 @@ clippy:
 
 lib:
 	@echo Build libhermit
-	@RUST_TARGET_PATH=$(CURDIR) cargo xbuild $(opt) --target $(target)-kernel --features "shm"
+	@RUST_TARGET_PATH=$(CURDIR) cargo xbuild $(opt) --target $(target)-kernel $(FEATURES)

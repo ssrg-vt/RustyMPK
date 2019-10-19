@@ -232,11 +232,12 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	let addr = unsafe_allocate(4096, true);
-	//let mut safe_local_var: usize = 54321; 
+	//let addr = unsafe_allocate(4096, true);
+	let mut safe_local_var: usize = 54321; 
 	unsafe {
-		isolate_function_no_ret!(unsafe_function(addr as *mut usize));
+		isolate_function_no_ret!(unsafe_function(&mut safe_local_var as *mut usize));
 	}
+	info!("safe_local_var: {:#X}", safe_local_var);
 
 	unsafe {
 		// And finally start the application.
