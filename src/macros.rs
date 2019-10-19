@@ -112,7 +112,7 @@ macro_rules! isolate_pointer {
 }
 
 #[cfg(feature = "shm")]
-macro_rules! isolate_function_no_ret {
+macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
 		info!("shm enabled");
 		use x86_64::kernel::percore::core_scheduler;
@@ -150,7 +150,7 @@ macro_rules! isolate_function_no_ret {
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
-		$f($($x)*);
+		let temp_ret = $f($($x)*);
 
 		asm!("xor %eax, %eax;
 			  xor %ecx, %ecx;
@@ -163,11 +163,12 @@ macro_rules! isolate_function_no_ret {
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SAFE_MEM_REGION);
+		temp_ret
 	}};
 }
 
-#[cfg(feature = "shm")]
-macro_rules! isolate_function {
+#[cfg(not(feature = "shm"))]
+macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
 		info!("shm enabled");
 		use x86_64::kernel::percore::core_scheduler;
@@ -180,6 +181,7 @@ macro_rules! isolate_function {
 		let mut __current_rbp: usize = 0;
 		let mut __count:usize = 0;
 
+		/* We get the address of current stack frame and calculate size of the stack frame. */
 		asm!("mov %rbp, $0;
 			  mov %rsp, $1"
 			: "=r"(__current_rbp), "=r"(CURRENT_STACK_POINTER)
@@ -187,9 +189,12 @@ macro_rules! isolate_function {
 			: "rbp", "rsp"
 			: "volatile");
 
+		/* Calculate the number of pages of the current stack frame */
 		__count = align_up!(__current_rbp - CURRENT_STACK_POINTER, 4096)/4096;
+		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
 		mpk_mem_set_key::<BasePageSize>(CURRENT_STACK_POINTER, __count, SHARED_MEM_REGION);
 
+		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
 			  mov $$0xC, %eax;
 			  xor %ecx, %ecx;
@@ -218,42 +223,7 @@ macro_rules! isolate_function {
 	}};
 }
 
-#[cfg(not(feature = "shm"))]
-macro_rules! isolate_function_no_ret {
-	($f:ident($($x:tt)*)) => {{
-		use x86_64::kernel::percore::core_scheduler;
-		use scheduler::CURRENT_STACK_POINTER;
-		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
-
-		asm!("mov %rsp, $0;
-			mov $1, %rsp;
-			mov $$0xC, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
-			: "=r"(CURRENT_STACK_POINTER)
-			: "r"(__isolated_stack)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
-
-		$f($($x)*);
-
-		asm!("xor %eax, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence;
-			mov $0, %rsp"
-			:
-			: "r"(CURRENT_STACK_POINTER)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
-	}};
-}
-
-#[cfg(not(feature = "shm"))]
-macro_rules! isolate_function {
+macro_rules! isolate_function_strong {
 	($f:ident($($x:tt)*)) => {{
 		use x86_64::kernel::percore::core_scheduler;
 		use scheduler::CURRENT_STACK_POINTER;
