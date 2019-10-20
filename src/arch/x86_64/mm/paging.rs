@@ -395,6 +395,7 @@ struct PageTable<L> {
 trait PageTableMethods {
 	fn get_page_table_entry<S: PageSize>(&self, page: Page<S>) -> Option<PageTableEntry>;
 	fn set_page_table_entry<S: PageSize>(&mut self, page: Page<S>, entry: usize);
+	fn set_pkey_on_page_table_entry<S: PageSize>(&mut self, page: Page<S>, pkey: u8);
 	fn map_page_in_this_table<S: PageSize>(
 		&mut self,
 		page: Page<S>,
@@ -467,6 +468,25 @@ impl<L: PageTableLevel> PageTableMethods for PageTable<L> {
 	*/
 		if self.entries[index].is_present() {
 			self.entries[index].physical_address_and_flags = entry;
+			page.flush_from_tlb();
+		} else {
+			panic!("Level {} entry is not present!!", L::LEVEL);
+		}
+	}
+
+	default fn set_pkey_on_page_table_entry<S: PageSize>(&mut self, page: Page<S>, pkey: u8) {
+		assert!(L::LEVEL == S::MAP_LEVEL);
+		let index = page.table_index::<L>();
+    /*
+		error!("table level: {} index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}",
+		L::LEVEL, index, self.entries[index].physical_address_and_flags,
+		self.entries[index].address(), self.entries[index].is_user(),
+		self.entries[index].is_present());
+	*/
+		if self.entries[index].is_present() {
+			self.entries[index].physical_address_and_flags = 
+					self.entries[index].physical_address_and_flags & !(0xF << 59) | (pkey as usize)<< 59;
+			page.flush_from_tlb();
 		} else {
 			panic!("Level {} entry is not present!!", L::LEVEL);
 		}
@@ -523,6 +543,26 @@ where
 				subtable.set_page_table_entry::<S>(page, entry);
 			} else {
 				self.entries[index].physical_address_and_flags = entry;
+				page.flush_from_tlb();
+			}
+		} else {
+			panic!("Level {} entry is not present!!", L::LEVEL);
+		}
+	}
+
+	fn set_pkey_on_page_table_entry<S: PageSize>(&mut self, page: Page<S>, pkey: u8) {
+		assert!(L::LEVEL >= S::MAP_LEVEL);
+		let index = page.table_index::<L>();
+		//error!("MAP_LEVEL: {}, table LEVEL: {}, index: {:#X}, entry: {:#X}, addr: {:#X}, is_user: {}, is_present: {}", S::MAP_LEVEL, L::LEVEL, index, self.entries[index].physical_address_and_flags, self.entries[index].address(), self.entries[index].is_user(), self.entries[index].is_present());
+
+		if self.entries[index].is_present() {
+			if L::LEVEL > S::MAP_LEVEL {
+				let subtable = self.subtable::<S>(page);
+				subtable.set_pkey_on_page_table_entry::<S>(page, pkey);
+			} else {
+				self.entries[index].physical_address_and_flags = 
+						self.entries[index].physical_address_and_flags & !(0xF << 59) | (pkey as usize)<< 59;
+				page.flush_from_tlb();
 			}
 		} else {
 			panic!("Level {} entry is not present!!", L::LEVEL);
@@ -707,8 +747,17 @@ pub fn set_page_table_entry<S: PageSize>(virtual_address: usize, entry: usize) {
 	root_pagetable.set_page_table_entry(page, entry);
 }
 
+pub fn set_pkey_on_page_table_entry<S: PageSize>(virtual_address: usize, count: usize, pkey: u8) {
+	trace!("Looking up Page Table Entry for {:#X}", virtual_address);
+	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
+	for i in 0..count {
+		let page = Page::<S>::including_address(virtual_address + S::SIZE*i);
+		root_pagetable.set_pkey_on_page_table_entry(page, pkey);
+	}
+}
+
 pub fn get_physical_address<S: PageSize>(virtual_address: usize) -> usize {
-	trace!("Getting physical address for {:#X}", virtual_address);
+	trace!("Getting physical address forlet new_entry =  {:#X}", virtual_address);
 
 	let page = Page::<S>::including_address(virtual_address);
 	let root_pagetable = unsafe { &mut *PML4_ADDRESS };
@@ -813,12 +862,7 @@ pub fn init_page_tables() {
 	 * It recursively walks through the lower level of the page tables through "subtable".
 	 * So we only need to set the pkey on the physical frame mapped with PML4_ADDRESS
 	 */
-
-	let pkey = ::mm::SAFE_MEM_REGION as usize;
-	let new_flag = (pkey << 59) | get_existing_flags::<BasePageSize>(PML4_ADDRESS as usize);
-	let page_table_address = get_physical_address::<BasePageSize>(PML4_ADDRESS as usize);
-	set_page_table_entry::<BasePageSize>(PML4_ADDRESS as usize, page_table_address | new_flag);
-
+	set_pkey_on_page_table_entry::<BasePageSize>(PML4_ADDRESS as usize, 1, ::mm::SAFE_MEM_REGION);
 
 	debug!("Found PML4 at 0x{:x}", pml4);
 

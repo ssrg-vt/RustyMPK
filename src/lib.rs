@@ -235,7 +235,7 @@ extern "C" fn initd(_arg: usize) {
 	//let addr = unsafe_allocate(4096, true);
 	let mut safe_local_var: usize = 54321; 
 	unsafe {
-		isolate_function_no_ret!(unsafe_function(&mut safe_local_var as *mut usize));
+		isolate_function_weak!(unsafe_function(&mut safe_local_var as *mut usize));
 	}
 	info!("safe_local_var: {:#X}", safe_local_var);
 
@@ -244,9 +244,9 @@ extern "C" fn initd(_arg: usize) {
 		runtime_entry(argc, argv, environ);
 	}
 }
-unsafe fn unsafe_function(ptr: *mut usize)
+fn unsafe_function(ptr: *mut usize)
 {
-	*ptr = 0xDEAD_BEEF;
+	unsafe {*ptr = 0xDEAD_BEEF};
 }
 
 /// Entry Point of HermitCore for the Boot Processor

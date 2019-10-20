@@ -120,7 +120,9 @@ pub fn mpk_mem_set_key<S: PageSize>(mut addr: usize, mut size: usize, key: u8) -
     {
         count = count + 1;
     }
-    return paging::set_pkey::<S>(addr, count, key);
+
+    paging::set_pkey_on_page_table_entry::<S>(addr, count, key);
+    return 0;
 }
 
 pub fn mpk_set_perm(key: u8, perm: MpkPerm) -> i32 {
