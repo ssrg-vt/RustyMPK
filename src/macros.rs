@@ -135,7 +135,7 @@ macro_rules! isolate_function_weak {
 		/* Calculate the number of pages of the current stack frame */
 		__count = (align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096))/4096;
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
-		set_pkey_on_page_table_entry::<BasePageSize>(__current_rsp, __count, SHARED_MEM_REGION);
+		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SHARED_MEM_REGION);
 
 		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
@@ -161,7 +161,7 @@ macro_rules! isolate_function_weak {
 			: "r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
-		set_pkey_on_page_table_entry::<BasePageSize>(__current_rsp, __count, SAFE_MEM_REGION);
+		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
 }
@@ -169,11 +169,12 @@ macro_rules! isolate_function_weak {
 #[cfg(not(feature = "shm"))]
 macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
-		info!("shm enabled");
+		info!("copying enabled");
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::mpk::mpk_mem_set_key;
-		use x86_64::mm::paging::BasePageSize;
+		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
+		use core::intrinsics::copy_nonoverlapping;
 
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rbp: usize = 0;
@@ -190,47 +191,78 @@ macro_rules! isolate_function_weak {
 
 		/* Calculate the number of pages of the current stack frame */
 		__size = align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096);
+		/* Set pkey of SHARED_MEM_REGION on the current stack frame */
+		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __size/4096, SHARED_MEM_REGION);
 
-
-
-
-
-
-		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
+		/* Permission to the safe region becomes NONE
+		 * i.e., isolation starts
+		 */
 		asm!("mov $0, %rsp;
 			  mov $$0xC, %eax;
 			  xor %ecx, %ecx;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence"
+			  :
+			  : "r"(__isolated_stack - __size)
+			  : "rsp", "eax", "ecx", "edx"
+			  : "volatile");
+
+		/* Copy the original stack frame to the isolated stack */
+		copy_nonoverlapping(align_down!(__current_rsp, 4096) as *const u8, (__isolated_stack - __size) as *mut u8, __size);
+
+		/* Change rsp and rbp to point to the isolated stack */
+		asm!("mov $0, %rsp;
+			  mov $1, %rbp"
 			: 
-			: "r"(__isolated_stack)
-			: "rsp", "eax", "ecx", "edx"
+			: "r"(__isolated_stack - (align_up!(__current_rbp, 4096) - __current_rsp)),
+			  "r"(__isolated_stack - (align_up!(__current_rbp, 4096) - __current_rbp))
+			: "rsp", "rbp"
+			: "volatile");
+
+		/* Set the original stack frame no access */
+		asm!("mov $$0xCC, %eax;
+			  xor %ecx, %ecx;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
+			:
+			:
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		let temp_ret = $f($($x)*);
 
+		/* Set the original stack frame writable */
+		asm!("mov $$0xC, %eax;
+			  xor %ecx, %ecx;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
+			:
+			:
+			: "eax", "ecx", "edx"
+			: "volatile");
+
+		/* Copy the change back to the original stack frame */
+		copy_nonoverlapping((__isolated_stack - __size) as *const u8, align_down!(__current_rsp, 4096) as *mut u8, __size);
+
+		/* Permission to the safe region becomes RW 
+		 * i.e., isolation ends
+		 */
 		asm!("xor %eax, %eax;
 			  xor %ecx, %ecx;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
-			  mov $0, %rsp"
+			  mov $0, %rsp;
+			  mov $1, %rbp"
 			:
-			: "r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
+			: "r"(__current_rsp), "r"(__current_rbp)
+			: "rsp", "rbp", "eax", "ecx", "edx"
 			: "volatile");
 
-
-
-
-
-
-
-
-
-
-			
+		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __size/4096, SAFE_MEM_REGION);
 		temp_ret
 	}};
 }
