@@ -234,7 +234,7 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	let mut safe_local_var: usize = 0x54321;
+	share_local_var!(let mut safe_local_var: usize = 0x54321);
 	unsafe {
 		safe_function(&mut safe_local_var as *mut usize);
 	}

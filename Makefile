@@ -20,6 +20,8 @@ endif
 FEATURES :=
 # To enable the memory sharing, 
 # do $export SHM=1 on the command line
+# For now, just use SHM and don't use COPYING
+SHM=1
 ifdef SHM
 FEATURES := --features shm
 endif

@@ -34,7 +34,7 @@ macro_rules! println {
 	($($arg:tt)+) => (print!("{}\n", format_args!($($arg)+)));
 }
 
-macro_rules! isolate_var {
+macro_rules! isolate_global_var {
     /* .data */
     (static mut $name:ident: $var_type:ty = $val:expr) => {
         #[link_section = ".isolated_data"]
@@ -57,7 +57,7 @@ macro_rules! isolate_var {
     };
 }
 
-macro_rules! isolate_pointer {
+macro_rules! isolate_raw_pointer {
     /* write on a raw pointer */
     (*$name:ident = $val:expr) => {{
         asm!("mov $$0xC, %eax;
@@ -109,6 +109,34 @@ macro_rules! isolate_pointer {
 			: "volatile");
         temp_val
     }};
+}
+
+macro_rules! share_local_var {
+	(let $name:ident: $var_type:ty = $expr:expr) => {
+		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
+		let $name: $var_type = $expr;
+		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SHARED_MEM_REGION);
+	};
+
+	(let mut $name:ident: $var_type:ty = $expr:expr) => {
+		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
+		let mut $name: $var_type = $expr;
+		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SHARED_MEM_REGION);
+	};
+}
+
+macro_rules! unshare_local_var {
+	(let $name:ident: $var_type:ty = $expr:expr) => {
+		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
+		let $name: $var_type = $expr;
+		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SAFE_MEM_REGION);
+	};
+
+	(let mut $name:ident: $var_type:ty = $expr:expr) => {
+		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
+		let mut $name: $var_type = $expr;
+		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SAFE_MEM_REGION);
+	};
 }
 
 #[cfg(feature = "shm")]
@@ -166,6 +194,7 @@ macro_rules! isolate_function_weak {
 	}};
 }
 
+/* Don't use COPYING for now.
 #[cfg(not(feature = "shm"))]
 macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
@@ -265,6 +294,7 @@ macro_rules! isolate_function_weak {
 		temp_ret
 	}};
 }
+*/
 
 macro_rules! isolate_function_strong {
 	($f:ident($($x:tt)*)) => {{
