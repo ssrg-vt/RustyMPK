@@ -32,9 +32,6 @@ static mut SCHEDULERS: Option<BTreeMap<usize, &PerCoreScheduler>> = None;
 static mut TASKS: Option<SpinlockIrqSave<BTreeMap<TaskId, Rc<RefCell<Task>>>>> = None;
 static TID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-/// Safe region stack pointer
-isolate_var!(pub static mut CURRENT_STACK_POINTER: usize);
-
 struct SchedulerState {
 	/// Queue of tasks, which are ready
 	ready_queue: PriorityTaskQueue,

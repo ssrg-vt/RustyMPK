@@ -171,7 +171,6 @@ macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
 		info!("copying enabled");
 		use x86_64::kernel::percore::core_scheduler;
-		use x86_64::mm::mpk::mpk_mem_set_key;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
 		use core::intrinsics::copy_nonoverlapping;
@@ -300,3 +299,60 @@ macro_rules! isolate_function_strong {
 		temp_ret
 	}};
 }
+
+/*
+macro_rules! gs_relative {
+	(&$name:ident as *const $var_type:ty) => {{
+		let offset: usize = &$name as *const $var_type as usize - processor::readgs();
+		offset
+	}};
+
+	(&mut $name:ident as *mut $var_type:ty) => {{
+		let offset: usize = &mut $name as *mut $var_type as usize - processor::readgs();
+		offset
+	}};
+}
+
+macro_rules! isolation_test {
+	($f:ident($($x:tt)*)) => {
+		parse_parameters!($($x)*);
+		$f($($x)*);
+		info!("test:{}", test1);
+		//isolate_function_weak!($f($($x)*));
+	};
+}
+
+macro_rules! parse_parameters {
+	() => {};
+
+	/* Find a pointer among the parameters */
+	($x:tt: *const $var_type:ty, $($tail:tt)*) => {{
+		*($x) += 1;
+		parse_parameters!($($tail)*);
+	}};
+
+	($x:tt: *mut $var_type:ty, $($tail:tt)*) => {{
+		*($x) += 1;
+		parse_parameters!($($tail)*);
+	}};
+
+	/* Walk-through parameters */
+	($x:tt, $($tail:tt)*) => {{
+		parse_parameters!($($tail)*);
+	}};
+
+	/* Find that the last parameter is a pointer */
+	($x:tt: *const $var_type:ty) => {{
+		*($x) += 1;
+	}};
+
+	($x:tt: *mut $var_type:ty) => {{
+		*($x) += 1;
+		static mut test1:usize = 1;
+	}};
+
+	/* the last parameter */
+	($x:tt) => {};
+	($x:tt: $var_type:ty) => {};
+}
+*/

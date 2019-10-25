@@ -20,7 +20,7 @@ endif
 .PHONY: default clean
 
 default:
-	@RUSTFLAGS="-L ../target/$(target)-kernel/$(rdir) -C link-arg=-Tsrc/linker.ld" cargo build $(opt) --target $(target)
+	RUSTFLAGS="-L ../target/$(target)-kernel/$(rdir) -C link-arg=-Tsrc/linker.ld -Ccodegen-units=1 --emit=llvm-bc" cargo build $(OPT) --target $(target) --verbose
 	@objcopy --only-keep-debug target/$(arch)-unknown-hermit/$(rdir)/rusty_tests target/$(arch)-unknown-hermit/$(rdir)/rusty_tests.sym
 	@objcopy --strip-debug target/$(arch)-unknown-hermit/$(rdir)/rusty_tests
 

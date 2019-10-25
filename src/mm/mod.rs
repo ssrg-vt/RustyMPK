@@ -84,9 +84,6 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 		match arch::mm::physicalmem::allocate_aligned(S::SIZE, S::SIZE) {
 			Ok(phys_addr) => {
 				arch::mm::paging::map::<S>(virt_addr + i, phys_addr, 1, flags);
-                                /* Set pages as safe memory region */
-                                //arch::mm::paging::pkey_print::<S>(virt_addr+i);
-                                //mpk::mpk_mem_set_key::<S>(virt_addr + i, S::SIZE, SAFE_MEM_REGION);
                                 i += S::SIZE;
 			}
 			Err(_) => {
@@ -112,7 +109,7 @@ pub fn init() {
 			arch::mm::paging::LargePageSize::SIZE
 		);
 		// Protect kernel memory with a protection key
-		mpk::mpk_mem_set_key::<LargePageSize>(KERNEL_START_ADDRESS, LargePageSize::SIZE, SAFE_MEM_REGION);
+		arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(KERNEL_START_ADDRESS, (KERNEL_END_ADDRESS - KERNEL_START_ADDRESS)/LargePageSize::SIZE, ::mm::SAFE_MEM_REGION);
 	}
 
     arch::mm::init();

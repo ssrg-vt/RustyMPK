@@ -32,6 +32,7 @@
 #![feature(specialization)]
 #![feature(naked_functions)]
 #![feature(core_intrinsics)]
+#![feature(type_ascription)]
 #![allow(unused_macros)]
 #![no_std]
 
@@ -51,8 +52,8 @@ extern crate x86;
 #[macro_use]
 extern crate log;
 
-#[macro_use]
-extern crate lazy_static;
+//#[macro_use]
+//extern crate lazy_static;
 
 #[macro_use]
 mod macros;
@@ -101,8 +102,9 @@ lazy_static! {
     static ref bss: u64 = 1234;
 }
 */
-isolate_var!(static mut global_var: usize = 0xDEAD_BEEF);
-isolate_var!(static mut unsafe_global_var: usize);
+//isolate_var!(static mut global_var: usize = 0xDEAD_BEEF);
+//static mut global_safe_var: usize;
+//isolate_var!(static mut unsafe_global_var: usize);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -232,21 +234,27 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	//let addr = unsafe_allocate(4096, true);
-	let mut safe_local_var: usize = 54321; 
+	let mut safe_local_var: usize = 0x54321;
 	unsafe {
-		isolate_function_weak!(unsafe_function(&mut safe_local_var as *mut usize));
+		safe_function(&mut safe_local_var as *mut usize);
 	}
-	info!("safe_local_var: {:#X}", safe_local_var);
-
+	
 	unsafe {
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}
 }
-fn unsafe_function(ptr: *mut usize)
+
+fn safe_function(ptr: *mut usize)
 {
-	unsafe {*ptr = 0xDEAD_BEEF};
+	unsafe {
+		isolate_function_weak!(unsafe_function(ptr));
+	}
+}
+
+unsafe fn unsafe_function(ptr: *mut usize)
+{
+	*ptr = 0xDEAD_BEEF;
 }
 
 /// Entry Point of HermitCore for the Boot Processor
