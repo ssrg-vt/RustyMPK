@@ -22,6 +22,8 @@ use arch::x86_64::mm::virtualmem;
 use config::*;
 use core::sync::atomic::spin_loop_hint;
 use core::{cmp, fmt, intrinsics, mem, ptr, u32};
+use core::intrinsics::{volatile_store, volatile_load};
+use core::ptr::copy_nonoverlapping;
 use environment;
 use mm;
 use scheduler;
@@ -68,8 +70,8 @@ const SMP_BOOT_CODE_OFFSET_ENTRY: usize = 0x08;
 
 const X2APIC_ENABLE: u64 = 1 << 10;
 
-static mut LOCAL_APIC_ADDRESS: usize = 0;
-static mut IOAPIC_ADDRESS: usize = 0;
+isolate_global_var!(static mut LOCAL_APIC_ADDRESS: usize = 0);
+isolate_global_var!(static mut IOAPIC_ADDRESS: usize = 0);
 
 /// Stores the Local APIC IDs of all CPUs. The index equals the Core ID.
 /// Both numbers often match, but don't need to (e.g. when a core has been disabled).
@@ -135,7 +137,7 @@ impl fmt::Display for IoApicRecord {
 extern "x86-interrupt" fn tlb_flush_handler(_stack_frame: &mut irq::ExceptionStackFrame) {
 	debug!("Received TLB Flush Interrupt");
 	unsafe {
-		cr3_write(cr3());
+		isolate_function_strong!(cr3_write(cr3()));
 	}
 	eoi();
 }
@@ -168,21 +170,35 @@ pub fn add_local_apic_id(id: u8) {
 fn detect_from_acpi() -> Result<usize, ()> {
 	// Get the Multiple APIC Description Table (MADT) from the ACPI information and its specific table header.
 	let madt = acpi::get_madt().expect("HermitCore requires a MADT in the ACPI tables");
-	let madt_header = unsafe { &*(madt.table_start_address() as *const AcpiMadtHeader) };
+	let madt_header;
+        unsafe {
+            isolation_start!();
+            madt_header = &*(madt.table_start_address() as *const AcpiMadtHeader);
+            isolation_end!();
+        }
 
 	// Jump to the actual table entries (after the table header).
 	let mut current_address = madt.table_start_address() + mem::size_of::<AcpiMadtHeader>();
 
 	// Loop through all table entries.
 	while current_address < madt.table_end_address() {
-		let record = unsafe { &*(current_address as *const AcpiMadtRecordHeader) };
+		let record;
+                unsafe { 
+                    isolation_start!();
+                    record = &*(current_address as *const AcpiMadtRecordHeader);
+                    isolation_end!();
+                };
 		current_address += mem::size_of::<AcpiMadtRecordHeader>();
 
 		match record.entry_type {
 			0 => {
 				// Processor Local APIC
-				let processor_local_apic_record =
-					unsafe { &*(current_address as *const ProcessorLocalApicRecord) };
+				let processor_local_apic_record;
+				unsafe {
+                                    isolation_start!(); 
+                                    processor_local_apic_record = &*(current_address as *const ProcessorLocalApicRecord);
+                                    isolation_end!(); 
+                                };
 				debug!(
 					"Found Processor Local APIC record: {}",
 					processor_local_apic_record
@@ -194,7 +210,12 @@ fn detect_from_acpi() -> Result<usize, ()> {
 			}
 			1 => {
 				// I/O APIC
-				let ioapic_record = unsafe { &*(current_address as *const IoApicRecord) };
+				let ioapic_record;
+                                unsafe {
+                                    isolation_start!();
+                                    ioapic_record = &*(current_address as *const IoApicRecord);
+                                    isolation_end!();
+                                }
 				debug!("Found I/O APIC record: {}", ioapic_record);
 
 				unsafe {
@@ -205,7 +226,7 @@ fn detect_from_acpi() -> Result<usize, ()> {
 					);
 
 					let mut flags = PageTableEntryFlags::empty();
-					flags.device().writable().execute_disable();
+					flags.device().writable().execute_disable().pkey(mm::SAFE_MEM_REGION);
 					paging::map::<BasePageSize>(
 						IOAPIC_ADDRESS,
 						ioapic_record.address as usize,
@@ -264,7 +285,7 @@ pub fn init() {
 			);
 
 			let mut flags = PageTableEntryFlags::empty();
-			flags.device().writable().execute_disable();
+			flags.device().writable().execute_disable().pkey(mm::SAFE_MEM_REGION);
 			paging::map::<BasePageSize>(LOCAL_APIC_ADDRESS, local_apic_physical_address, 1, flags);
 		}
 	}
@@ -411,7 +432,7 @@ pub fn set_oneshot_timer(wakeup_time: Option<u64>) {
 				APIC_LVT_TIMER_TSC_DEADLINE | u64::from(TIMER_INTERRUPT_NUMBER),
 			);
 			unsafe {
-				wrmsr(IA32_TSC_DEADLINE, tsc_deadline);
+				isolate_function_strong!(wrmsr(IA32_TSC_DEADLINE, tsc_deadline));
 			}
 		} else {
 			// Calculate the relative timeout from the absolute wakeup time.
@@ -442,10 +463,10 @@ pub fn init_x2apic() {
 	if processor::supports_x2apic() {
 		// The CPU supports the modern x2APIC mode, which uses MSRs for communication.
 		// Enable it.
-		let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
+		let mut apic_base = unsafe { isolate_function_strong!(rdmsr(IA32_APIC_BASE)) };
 		apic_base |= X2APIC_ENABLE;
 		unsafe {
-			wrmsr(IA32_APIC_BASE, apic_base);
+			isolate_function_strong!(wrmsr(IA32_APIC_BASE, apic_base));
 		}
 	}
 }
@@ -457,11 +478,11 @@ pub fn init_next_processor_variables(core_id: usize) {
 	let stack = mm::allocate(KERNEL_STACK_SIZE, false);
 	let boxed_percore = Box::new(PerCoreVariables::new(core_id));
 	unsafe {
-		intrinsics::volatile_store(&mut (*BOOT_INFO).current_stack_address, stack as u64);
-		intrinsics::volatile_store(
+		isolate_function_strong!(volatile_store(&mut (*BOOT_INFO).current_stack_address, stack as u64));
+		isolate_function_strong!(volatile_store(
 			&mut (*BOOT_INFO).current_percore_address,
 			Box::into_raw(boxed_percore) as u64,
-		);
+		));
 	}
 }
 
@@ -484,26 +505,29 @@ pub fn boot_application_processors() {
 		SMP_BOOT_CODE_ADDRESS
 	);
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable();
+	flags.normal().writable(); /*FIXME*/
 	paging::map::<BasePageSize>(SMP_BOOT_CODE_ADDRESS, SMP_BOOT_CODE_ADDRESS, 1, flags);
 	unsafe {
-		ptr::copy_nonoverlapping(
+            isolate_function_strong!(
+		copy_nonoverlapping(
 			&SMP_BOOT_CODE as *const u8,
 			SMP_BOOT_CODE_ADDRESS as *mut u8,
 			SMP_BOOT_CODE.len(),
-		);
+		));
 	}
 
 	unsafe {
 		// Pass the PML4 page table address to the boot code.
+                isolation_start!();
 		*((SMP_BOOT_CODE_ADDRESS + SMP_BOOT_CODE_OFFSET_PML4) as *mut u32) = cr3() as u32;
 		// Set entry point
-		debug!(
-			"Set entry point for application processor to 0x{:x}",
-			arch::x86_64::kernel::start::_start as usize
-		);
+		//debug!(
+		//	"Set entry point for application processor to 0x{:x}",
+		//	arch::x86_64::kernel::start::_start as usize
+		//);
 		*((SMP_BOOT_CODE_ADDRESS + SMP_BOOT_CODE_OFFSET_ENTRY) as *mut usize) =
 			arch::x86_64::kernel::start::_start as usize;
+                isolation_end!();
 	}
 
 	// Now wake up each application processor.
@@ -609,19 +633,26 @@ fn translate_x2apic_msr_to_xapic_address(x2apic_msr: u32) -> usize {
 fn local_apic_read(x2apic_msr: u32) -> u32 {
 	if processor::supports_x2apic() {
 		// x2APIC is simple, we can just read from the given MSR.
-		unsafe { rdmsr(x2apic_msr) as u32 }
+		unsafe { isolate_function_strong!(rdmsr(x2apic_msr)) as u32 }
 	} else {
-		unsafe { *(translate_x2apic_msr_to_xapic_address(x2apic_msr) as *const u32) }
+		unsafe { 
+                    isolation_start!();
+                    let temp = *(translate_x2apic_msr_to_xapic_address(x2apic_msr) as *const u32);
+                    isolation_end!();
+                    temp
+                }
 	}
 }
 
 fn ioapic_write(reg: u32, value: u32) {
 	unsafe {
-		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
-		intrinsics::volatile_store(
+                share!(IOAPIC_ADDRESS);
+		isolate_function_strong!(volatile_store(IOAPIC_ADDRESS as *mut u32, reg));
+		isolate_function_strong!(volatile_store(
 			(IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *mut u32,
 			value,
-		);
+		));
+                unshare!(IOAPIC_ADDRESS);
 	}
 }
 
@@ -629,9 +660,10 @@ fn ioapic_read(reg: u32) -> u32 {
 	let value;
 
 	unsafe {
-		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
-		value =
-			intrinsics::volatile_load((IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *const u32);
+                share!(IOAPIC_ADDRESS);
+		isolate_function_strong!(volatile_store(IOAPIC_ADDRESS as *mut u32, reg));
+		value = isolate_function_strong!(volatile_load((IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *const u32));
+                unshare!(IOAPIC_ADDRESS);
 	}
 
 	value
@@ -649,29 +681,40 @@ fn local_apic_write(x2apic_msr: u32, value: u64) {
 	if processor::supports_x2apic() {
 		// x2APIC is simple, we can just write the given value to the given MSR.
 		unsafe {
-			wrmsr(x2apic_msr, value);
+			isolate_function_strong!(wrmsr(x2apic_msr, value));
 		}
 	} else {
 		if x2apic_msr == IA32_X2APIC_ICR {
 			// Instead of a single 64-bit ICR register, xAPIC has two 32-bit registers (ICR1 and ICR2).
 			// There is a gap between them and the destination field in ICR2 is also 8 bits instead of 32 bits.
 			let destination = ((value >> 8) & 0xFF00_0000) as u32;
-			let icr2 = unsafe { &mut *((LOCAL_APIC_ADDRESS + APIC_ICR2) as *mut u32) };
+			let icr2;
+                        unsafe {
+                            share!(LOCAL_APIC_ADDRESS + APIC_ICR2);
+                            isolation_start!();
+                            icr2 = &mut *((LOCAL_APIC_ADDRESS + APIC_ICR2) as *mut u32);
+                            isolation_end!();
+                            unshare!(LOCAL_APIC_ADDRESS + APIC_ICR2);
+                        };
 			*icr2 = destination;
 
 			// The remaining data without the destination will now be written into ICR1.
 		}
 
 		// Write the value.
-		let value_ref =
-			unsafe { &mut *(translate_x2apic_msr_to_xapic_address(x2apic_msr) as *mut u32) };
+		let value_ref;
+		unsafe {
+                    isolation_start!();
+                    value_ref = &mut *(translate_x2apic_msr_to_xapic_address(x2apic_msr) as *mut u32);
+                    isolation_end!();
+                };
 		*value_ref = value as u32;
 
 		if x2apic_msr == IA32_X2APIC_ICR {
 			// The ICR1 register in xAPIC mode also has a Delivery Status bit that must be checked.
 			// Wait until the CPU clears it.
 			// This bit does not exist in x2APIC mode (cf. Intel Vol. 3A, 10.12.9).
-			while (unsafe { intrinsics::volatile_load(value_ref) }
+			while (unsafe { isolate_function_strong!(volatile_load(value_ref)) }
 				& APIC_ICR_DELIVERY_STATUS_PENDING)
 				> 0
 			{

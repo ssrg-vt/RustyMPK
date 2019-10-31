@@ -38,6 +38,10 @@ static mut HEAP_END_ADDRESS: usize = 0;
 pub const SAFE_MEM_REGION: u8 = 1;
 pub const UNSAFE_MEM_REGION: u8 = 2;
 pub const SHARED_MEM_REGION: u8 = 3;
+pub const BOOT_MEM_REGION: u8 = 15;
+
+pub const PKRU_PERMISSION: u32 = 0xC000000C;
+//pub const PKRU_PERMISSION: u32 = 0xC;
 
 /*
 #[cfg(not(test))]
@@ -109,11 +113,13 @@ pub fn init() {
 			arch::mm::paging::LargePageSize::SIZE
 		);
 		// Protect kernel memory with a protection key
-		arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(KERNEL_START_ADDRESS, (KERNEL_END_ADDRESS - KERNEL_START_ADDRESS)/LargePageSize::SIZE, ::mm::SAFE_MEM_REGION);
+		arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(KERNEL_START_ADDRESS, (KERNEL_END_ADDRESS - KERNEL_START_ADDRESS)/LargePageSize::SIZE, SAFE_MEM_REGION);
 	}
 
-    arch::mm::init();
-	arch::mm::init_page_tables();
+        arch::mm::init();
+		arch::mm::init_page_tables();    
+        arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, BOOT_MEM_REGION);
+        arch::mm::paging::print_page_table_entry::<LargePageSize>(0x0 as usize);
 
 	info!("Total memory size: {} MB", total_memory_size() >> 20);
 

@@ -83,7 +83,6 @@ use alloc::alloc::Layout;
 use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use mm::allocator::LockedHeap;
-use mm::{allocate, unsafe_allocate, shared_allocate, deallocate};
 
 /*
 use x86_64::mm::mpk;
@@ -97,14 +96,6 @@ use core::ptr;
 #[cfg(not(test))]
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
-/*
-lazy_static! {
-    static ref bss: u64 = 1234;
-}
-*/
-//isolate_var!(static mut global_var: usize = 0xDEAD_BEEF);
-//static mut global_safe_var: usize;
-//isolate_var!(static mut unsafe_global_var: usize);
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -168,15 +159,6 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 #[cfg(not(test))]
 extern "C" {
 	static mut __bss_start: usize;
-	static mut __bss_end: usize;
-/*
-	static mut __isolated_data_start: usize;
-	static mut __isolated_data_end: usize;
-	static mut __isolated_data_size: usize;
-	static mut __isolated_bss_start: usize;
-	static mut __isolated_bss_end: usize;
-	static mut __isolated_bss_size: usize;
-*/
 }
 
 
@@ -206,7 +188,7 @@ extern "C" fn initd(_arg: usize) {
 	#[cfg(feature = "newlib")]
 	unsafe {
 		if has_ipdevice() {
-			init_lwip();
+			isolate_function_strong!(init_lwip());
 		}
 	}
 
@@ -216,7 +198,7 @@ extern "C" fn initd(_arg: usize) {
 		if has_ipdevice() {
 			#[cfg(feature = "newlib")]
 			unsafe {
-				init_uhyve_netif();
+				isolate_function_strong!(init_uhyve_netif());
 			}
 
 			#[cfg(not(feature = "newlib"))]
@@ -234,27 +216,15 @@ extern "C" fn initd(_arg: usize) {
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
-	share_local_var!(let mut safe_local_var: usize = 0x54321);
-	unsafe {
-		safe_function(&mut safe_local_var as *mut usize);
-	}
-	
-	unsafe {
+    //unsafe {
+    //    info!("percore: {:#X}", arch::x86_64::kernel::percore::PERCORE.tss.get() as usize);
+    //}
+
+
+	unsafe /*FIXME*/{
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);
 	}
-}
-
-fn safe_function(ptr: *mut usize)
-{
-	unsafe {
-		isolate_function_weak!(unsafe_function(ptr));
-	}
-}
-
-unsafe fn unsafe_function(ptr: *mut usize)
-{
-	*ptr = 0xDEAD_BEEF;
 }
 
 /// Entry Point of HermitCore for the Boot Processor
@@ -266,31 +236,9 @@ fn boot_processor_main() -> ! {
 
 	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
 	info!("Kernel starts at 0x{:x}", environment::get_base_address());
-
-        info!("BSS starts at 0x{:x}", unsafe {
+    /*
+	info!("BSS starts at 0x{:x}", unsafe {
 		&__bss_start as *const usize as usize
-	});
-        info!("BSS ends at 0x{:x}", unsafe {
-		&__bss_end as *const usize as usize
-	});
-/*
-        info!("isolated_DATA starts at 0x{:x}", unsafe {
-		&__isolated_data_start as *const usize as usize
-	});
-        info!("isolated_DATA ends at 0x{:x}", unsafe {
-		&__isolated_data_end as *const usize as usize
-	});
-        info!("isolated_DATA size is {}", unsafe {
-		&__isolated_data_size as *const usize as usize
-	});
-        info!("isolated_BSS starts at 0x{:x}", unsafe {
-		&__isolated_bss_start as *const usize as usize
-	});
-        info!("isolated_BSS ends at 0x{:x}", unsafe {
-		&__isolated_bss_end as *const usize as usize
-	});
-        info!("isolated_BSS size is {}", unsafe {
-		&__isolated_bss_size as *const usize as usize
 	});
 */
         info!(

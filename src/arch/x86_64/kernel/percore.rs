@@ -11,7 +11,7 @@ use scheduler::PerCoreScheduler;
 use x86::bits64::task::TaskStateSegment;
 use x86::msr::*;
 
-pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0);
+isolate_global_var!(pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0));
 
 pub struct PerCoreVariables {
 	/// Sequential ID of this CPU Core.

@@ -107,7 +107,6 @@ pub fn mpk_mem_set_key<S: PageSize>(mut addr: usize, mut size: usize, key: u8) -
         return -EINVAL;
     }
 
-    /* FIXME */
     /* If needed floor addr to the nearest page */
     addr = (addr) & !(S::SIZE-1);
     /* If needed ceil [addr + size[ to the nearest page */

@@ -19,6 +19,7 @@ pub mod pit;
 pub mod processor;
 pub mod scheduler;
 pub mod serial;
+pub mod copy_safe;
 #[cfg(not(test))]
 mod smp_boot_code;
 #[cfg(not(test))]
@@ -69,12 +70,10 @@ pub struct BootInfo {
 
 /// Kernel header to announce machine features
 #[cfg(not(feature = "newlib"))]
-#[link_section = ".data"]
-static mut BOOT_INFO: *mut BootInfo = ptr::null_mut();
+isolate_global_var!(static mut BOOT_INFO: *mut BootInfo = ptr::null_mut());
 
 #[cfg(feature = "newlib")]
-#[link_section = ".mboot"]
-static mut BOOT_INFO: *mut BootInfo = ptr::null_mut();
+isolate_global_var!(static mut BOOT_INFO: *mut BootInfo = ptr::null_mut());
 
 /// Serial port to print kernel messages
 static mut COM1: SerialPort = SerialPort::new(0x3f8);

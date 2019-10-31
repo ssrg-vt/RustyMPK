@@ -25,6 +25,7 @@ fn main() {
             let p_addr: *mut u64 = addr as *mut u64;
             println!("p: {}", *p_addr);
         }
+*/
 	println!(
 		"Test {} ... {}",
 		stringify!(print_argv),
@@ -35,11 +36,13 @@ fn main() {
 		stringify!(print_env),
 		test_result(print_env())
 	);
+        /*
 	println!(
 		"Test {} ... {}",
 		stringify!(read_file),
 		test_result(read_file())
 	);
+        */
 	println!(
 		"Test {} ... {}",
 		stringify!(create_file),
@@ -60,7 +63,7 @@ fn main() {
 		stringify!(pi_parallel),
 		test_result(pi_parallel(2, 5000000))
 	);
-	/*println!(
+	println!(
 		"Test {} ... {}",
 		stringify!(laplace),
 		test_result(laplace(128, 128))
@@ -74,7 +77,7 @@ fn main() {
 		"Test {} ... {}",
 		stringify!(thread_creation),
 		test_result(thread_creation())
-	);*/
+	);
 	println!(
 		"Test {} ... {}",
 		stringify!(bench_sched_one_thread),
@@ -90,5 +93,4 @@ fn main() {
 		stringify!(test_http_request),
 		test_result(test_http_request())
 	);
-*/
 }
