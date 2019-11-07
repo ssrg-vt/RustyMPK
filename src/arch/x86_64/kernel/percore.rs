@@ -5,13 +5,16 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use arch::x86_64::kernel::BOOT_INFO;
-use core::{intrinsics, ptr};
+use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
+use arch::x86_64::kernel::copy_safe::*;
+use arch::x86_64::kernel::processor;
+use core::{intrinsics, ptr, mem};
 use scheduler::PerCoreScheduler;
+use mm;
 use x86::bits64::task::TaskStateSegment;
 use x86::msr::*;
 
-isolate_global_var!(pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0));
+pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0);
 
 pub struct PerCoreVariables {
 	/// Sequential ID of this CPU Core.
@@ -95,7 +98,26 @@ impl<T: Is32BitVariable> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 #[cfg(not(test))]
 #[inline]
 pub fn core_id() -> usize {
-	unsafe { PERCORE.core_id.get() }
+	//if unsafe{UNSAFE_STORAGE} == 0 {
+		unsafe { /* FIXME */
+			PERCORE.core_id.get()
+		}
+	//}
+/*
+	else {
+		unsafe {
+			//PERCORE.core_id.get()
+			//let offset = (*(UNSAFE_STORAGE as *const PerCoreVariables)).core_id as *const _ as usize - UNSAFE_STORAGE;
+			let value: usize;
+			copy_from_safe(&PERCORE, mem::size_of::<PerCoreVariables>());
+			//isolation_start!();
+			//asm!("swapgs" :::: "volatile");
+			clear_unsafe_storage();
+			//isolation_start!();
+			value
+		}
+	}
+*/
 }
 
 #[cfg(test)]
@@ -116,11 +138,25 @@ pub fn set_core_scheduler(scheduler: *mut PerCoreScheduler) {
 }
 
 pub fn init() {
-	unsafe {
+	unsafe { /* FIXME */
+		let address;
+		//if UNSAFE_STORAGE == 0 {
 		// Store the address to the PerCoreVariables structure allocated for this core in GS.
-		let address = intrinsics::volatile_load(&(*BOOT_INFO).current_percore_address);
+		address = intrinsics::volatile_load(&(*BOOT_INFO).current_percore_address);
+		//}
+		/*
+		else {
+			error!("else");
+			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			//isolation_start!();
+			address = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).current_percore_address);
+			//isolation_start!();
+			clear_unsafe_storage();
+		}
+		*/
 		if address == 0 {
 			wrmsr(IA32_GS_BASE, &PERCORE as *const _ as u64);
+			list_add(&PERCORE as *const PerCoreVariables as usize);
 		} else {
 			wrmsr(IA32_GS_BASE, address as u64);
 		}

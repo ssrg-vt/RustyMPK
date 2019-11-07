@@ -9,7 +9,10 @@ use arch::x86_64::mm::paging;
 use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
 use arch::x86_64::mm::virtualmem;
 use core::{mem, slice, str};
+use core::str::from_utf8_unchecked;
+use core::slice::from_raw_parts;
 use x86::io::*;
+use mm;
 
 /// Memory at this physical address is supposed to contain a pointer to the Extended BIOS Data Area (EBDA).
 const EBDA_PTR_LOCATION: usize = 0x0000_040E;
@@ -63,11 +66,11 @@ struct AcpiRsdp {
 
 impl AcpiRsdp {
 	fn oem_id(&self) -> &str {
-		unsafe { str::from_utf8_unchecked(&self.oem_id) }
+		unsafe { isolate_function_strong!(from_utf8_unchecked(&self.oem_id)) }
 	}
 
 	fn signature(&self) -> &str {
-		unsafe { str::from_utf8_unchecked(&self.signature) }
+		unsafe { isolate_function_strong!(from_utf8_unchecked(&self.signature)) }
 	}
 }
 
@@ -87,7 +90,7 @@ struct AcpiSdtHeader {
 
 impl AcpiSdtHeader {
 	fn signature(&self) -> &str {
-		unsafe { str::from_utf8_unchecked(&self.signature) }
+		unsafe { isolate_function_strong!(from_utf8_unchecked(&self.signature)) }
 	}
 }
 
@@ -117,7 +120,12 @@ impl<'a> AcpiTable<'a> {
 
 		// Get a pointer to the header and query the table length.
 		let mut header_ptr = (virtual_address + offset) as *const AcpiSdtHeader;
-		let table_length = unsafe { (*header_ptr).length } as usize;
+		let table_length =
+			unsafe { 
+				isolation_start!();
+				let length = (*header_ptr).length;
+				isolation_end!();
+				length } as usize;
 
 		// Remap if the length exceeds what we've allocated.
 		if table_length > allocated_length - offset {
@@ -134,7 +142,11 @@ impl<'a> AcpiTable<'a> {
 
 		// Return the table.
 		Self {
-			header: unsafe { &*header_ptr },
+			header: unsafe {
+						isolation_start!(); 
+						let ptr = &*header_ptr;
+						isolation_end!(); 
+						ptr },
 			allocated_virtual_address: virtual_address,
 			allocated_length,
 		}
@@ -238,7 +250,7 @@ struct AcpiFadt {
 /// (wrapping) sum over all table fields equals zero.
 fn verify_checksum(start_address: usize, length: usize) -> Result<(), ()> {
 	// Get a slice over all bytes of the structure that are considered for the checksum.
-	let slice = unsafe { slice::from_raw_parts(start_address as *const u8, length) };
+	let slice = unsafe { isolate_function_strong!(from_raw_parts(start_address as *const u8, length)) };
 
 	// Perform a wrapping sum over these bytes.
 	let checksum = slice.iter().fold(0, |acc: u8, x| acc.wrapping_add(*x));
@@ -267,7 +279,11 @@ fn detect_rsdp(start_address: usize, end_address: usize) -> Result<&'static Acpi
 		}
 
 		// Verify the signature to find out if this is really an ACPI RSDP.
-		let rsdp = unsafe { &*(current_address as *const AcpiRsdp) };
+		let rsdp = unsafe {
+						isolation_start!();
+						let temp_rsdp = &*(current_address as *const AcpiRsdp);
+						isolation_end!();
+						temp_rsdp };
 		if rsdp.signature() != "RSD PTR " {
 			continue;
 		}
@@ -309,7 +325,11 @@ fn detect_rsdp(start_address: usize, end_address: usize) -> Result<&'static Acpi
 fn detect_acpi() -> Result<&'static AcpiRsdp, ()> {
 	// Get the address of the EBDA.
 	paging::identity_map(EBDA_PTR_LOCATION, EBDA_PTR_LOCATION);
-	let ebda_ptr_location = unsafe { &*(EBDA_PTR_LOCATION as *const u16) };
+	let ebda_ptr_location = unsafe { 
+								isolation_start!();
+								let temp_ebda_ptr_location = &*(EBDA_PTR_LOCATION as *const u16);
+								isolation_end!();
+								temp_ebda_ptr_location };
 	let ebda_address = (*ebda_ptr_location as usize) << 4;
 
 	// Check if the pointed address is valid. This check is also done in ACPICA.
@@ -333,10 +353,10 @@ fn search_s5_in_table(table: AcpiTable<'_>) {
 	// Get the AML code.
 	// As we do not implement an AML interpreter, we search through the bytecode.
 	let aml = unsafe {
-		slice::from_raw_parts(
+		isolate_function_strong!(from_raw_parts(
 			table.table_start_address() as *const u8,
 			table.table_end_address() - table.table_start_address(),
-		)
+		))
 	};
 
 	// Find the "_S5_" object in the bytecode.
@@ -388,7 +408,11 @@ fn parse_fadt(fadt: AcpiTable<'_>) {
 	// Get us a reference to the actual fields of the FADT table.
 	// Note that not all fields may be accessible depending on the ACPI revision of the computer.
 	// Always check fadt.table_end_address() when accessing an optional field!
-	let fadt_table = unsafe { &*(fadt.table_start_address() as *const AcpiFadt) };
+	let fadt_table = unsafe {
+						isolation_start!();
+						let temp_fadt_table = &*(fadt.table_start_address() as *const AcpiFadt);
+						isolation_end!();
+						temp_fadt_table };
 
 	// Check if the FADT is large enough to hold an x_pm1a_cnt_blk field and if this field is non-zero.
 	// In that case, it shall be preferred over the I/O port specified in pm1a_cnt_blk.
@@ -408,7 +432,7 @@ fn parse_fadt(fadt: AcpiTable<'_>) {
 
 	// Map the "Differentiated System Description Table" (DSDT).
 	// TODO: This must not require "unsafe", see https://github.com/rust-lang/rust/issues/46043#issuecomment-393072398
-	let x_dsdt_field_address = unsafe { &fadt_table.x_dsdt as *const _ as usize };
+	let x_dsdt_field_address = &fadt_table.x_dsdt as *const _ as usize;
 	let dsdt_address = if x_dsdt_field_address < fadt.table_end_address() && fadt_table.x_dsdt > 0 {
 		fadt_table.x_dsdt as usize
 	} else {
@@ -450,18 +474,18 @@ pub fn get_madt() -> Option<&'static AcpiTable<'static>> {
 }
 
 pub fn poweroff() {
-	unsafe {
-		if let (Some(pm1a_cnt_blk), Some(slp_typa)) = (PM1A_CNT_BLK, SLP_TYPA) {
+	
+		if let (Some(pm1a_cnt_blk), Some(slp_typa)) = unsafe {(PM1A_CNT_BLK, SLP_TYPA)} {
 			let bits = (u16::from(slp_typa) << 10) | SLP_EN;
 			debug!(
 				"Powering Off through ACPI (port {:#X}, bitmask {:#X})",
 				pm1a_cnt_blk, bits
 			);
-			outw(pm1a_cnt_blk, bits);
+			unsafe {outw(pm1a_cnt_blk, bits);}
 		} else {
 			debug!("ACPI Power Off is not available");
 		}
-	}
+
 }
 
 pub fn init() {
@@ -484,11 +508,22 @@ pub fn init() {
 		// Depending on the RSDP revision, either an XSDT or an RSDT has been chosen above.
 		// The XSDT contains 64-bit pointers whereas the RSDT has 32-bit pointers.
 		let table_physical_address = if rsdp.revision >= 2 {
-			let address = unsafe { *(current_address as *const u64) } as usize;
+			let address = unsafe {
+								isolation_start!();
+								let temp_address = *(current_address as *const u64);
+								isolation_end!();
+								temp_address
+							} as usize;
+								
 			current_address += mem::size_of::<u64>();
 			address
 		} else {
-			let address = unsafe { *(current_address as *const u32) } as usize;
+			let address = unsafe {
+								isolation_start!();
+								let temp_address = *(current_address as *const u32);
+								isolation_end!();
+								temp_address
+							} as usize;
 			current_address += mem::size_of::<u32>();
 			address
 		};

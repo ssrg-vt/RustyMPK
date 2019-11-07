@@ -13,14 +13,16 @@ use arch::x86_64::kernel::idt;
 use arch::x86_64::kernel::irq;
 use arch::x86_64::kernel::pic;
 use arch::x86_64::kernel::pit;
-use arch::x86_64::kernel::BOOT_INFO;
+use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
+use arch::x86_64::kernel::copy_safe::*;
 use core::sync::atomic::spin_loop_hint;
-use core::{fmt, intrinsics, u32};
+use core::{fmt, intrinsics, u32, mem};
 use environment;
 use x86::controlregs::*;
 use x86::cpuid::*;
 use x86::msr::*;
 use x86::time::*;
+use mm;
 
 const IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP: u64 = 1 << 16;
 const IA32_MISC_ENABLE_SPEEDSTEP_LOCK: u64 = 1 << 20;
@@ -171,11 +173,15 @@ impl FPUState {
 		if supports_xsave() {
 			let bitmask = u32::MAX;
 			unsafe {
+				isolation_start!();
 				asm!("xrstorq $0" :: "*m"(self as *const Self), "{eax}"(bitmask), "{edx}"(bitmask) :: "volatile");
+				isolation_end!();
 			}
 		} else {
 			unsafe {
+				isolation_start!();
 				asm!("fxrstor $0" :: "*m"(self as *const Self) :: "volatile");
+				isolation_end!();
 			}
 		}
 	}
@@ -184,18 +190,24 @@ impl FPUState {
 		if supports_xsave() {
 			let bitmask: u32 = u32::MAX;
 			unsafe {
+				isolation_start!();
 				asm!("xsaveq $0" : "=*m"(self as *mut Self) : "{eax}"(bitmask), "{edx}"(bitmask) : "memory" : "volatile");
+				isolation_end!();
 			}
 		} else {
 			unsafe {
+				isolation_start!();
 				asm!("fxsave $0; fnclex" : "=*m"(self as *mut Self) :: "memory" : "volatile");
+				isolation_end!();
 			}
 		}
 	}
 
 	pub fn restore_common(&self) {
 		unsafe {
+			isolation_start!();
 			asm!("fxrstor $0" :: "*m"(self as *const Self) :: "volatile");
+			isolation_end!();
 		}
 	}
 }
@@ -306,7 +318,14 @@ impl CpuFrequency {
 	}
 
 	unsafe fn detect_from_hypervisor(&mut self) -> Result<(), ()> {
-		let cpu_freq = intrinsics::volatile_load(&(*BOOT_INFO).cpu_freq);
+		let cpu_freq;
+		unsafe { 
+			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			isolation_start!();
+			cpu_freq = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).cpu_freq);
+			isolation_end!();
+			clear_unsafe_storage();
+		}
 		if cpu_freq > 0 {
 			self.mhz = cpu_freq as u16;
 			self.source = CpuFrequencySources::Hypervisor;
@@ -354,12 +373,28 @@ impl CpuFrequency {
 
 		// Determine the current timer tick.
 		// We are probably loading this value in the middle of a time slice.
-		let first_tick = unsafe { intrinsics::volatile_load(&MEASUREMENT_TIMER_TICKS) };
+		let first_tick = unsafe { 
+				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
+				isolation_start!();
+				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
+			};
+			unsafe {
+				isolation_end!();
+				clear_unsafe_storage();
+			}
 
 		// Wait until the tick count changes.
 		// As soon as it has done, we are at the start of a new time slice.
 		let start_tick = loop {
-			let tick = unsafe { intrinsics::volatile_load(&MEASUREMENT_TIMER_TICKS) };
+			let tick = unsafe {
+				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
+				isolation_start!();
+				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
+			};
+			unsafe {
+				isolation_end!();
+				clear_unsafe_storage();
+			}
 			if tick != first_tick {
 				break tick;
 			}
@@ -371,7 +406,16 @@ impl CpuFrequency {
 		let start = get_timestamp();
 
 		loop {
-			let tick = unsafe { intrinsics::volatile_load(&MEASUREMENT_TIMER_TICKS) };
+			let tick = unsafe {
+				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
+				isolation_start!();
+				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
+			};
+			unsafe {
+				isolation_end!();
+				clear_unsafe_storage();
+			}
+
 			if tick - start_tick >= tick_count {
 				break;
 			}
@@ -798,11 +842,16 @@ pub fn configure() {
 	unsafe {
 		CPU_SPEEDSTEP.configure();
 	}
+	/* Add CPU_FREQUENCY to white list */
+	unsafe {list_add(&CPU_FREQUENCY as *const CpuFrequency as usize)};
 }
 
 pub fn detect_frequency() {
 	unsafe {
-		CPU_FREQUENCY.detect();
+		CPU_FREQUENCY.detect(); /* FIXME */
+		//copy_from_safe(&CPU_FREQUENCY, size_of::<CpuFrequency>());
+		//isolate_function_weak!((*(UNSAFE_STORAGE as *mut CpuFrequency)).detect());
+		//clear_unsafe_storage();
 	}
 }
 
@@ -851,7 +900,9 @@ pub fn generate_random_number() -> Option<u32> {
 	if unsafe { SUPPORTS_RDRAND } {
 		let value: u32;
 		unsafe {
+			isolation_start!();
 			asm!("rdrand $0" : "=r"(value) ::: "volatile");
+			isolation_end!();
 		}
 		Some(value)
 	} else {
@@ -914,7 +965,9 @@ pub fn msb(value: u64) -> Option<u64> {
 	if value > 0 {
 		let ret: u64;
 		unsafe {
+			isolation_start!();
 			asm!("bsr $1, $0" : "=r"(ret) : "r"(value) : "cc" : "volatile");
+			isolation_end!();
 		}
 		Some(ret)
 	} else {
@@ -946,14 +999,23 @@ pub fn get_timer_ticks() -> u64 {
 }
 
 pub fn get_frequency() -> u16 {
-	unsafe { CPU_FREQUENCY.get() }
+	unsafe {
+            copy_from_safe(&CPU_FREQUENCY, mem::size_of::<CpuFrequency>());
+			isolation_start!();
+			let frequency = (*(UNSAFE_STORAGE as *const CpuFrequency)).mhz;
+			isolation_end!();
+			clear_unsafe_storage();
+			return frequency;
+    }
 }
 
 #[inline]
 pub fn readfs() -> usize {
 	let val: u64;
 	unsafe {
+		isolation_start!();
 		asm!("rdfsbase $0" : "=r"(val) ::: "volatile");
+		isolation_end!();
 	}
 	val as usize
 }
@@ -962,7 +1024,9 @@ pub fn readfs() -> usize {
 pub fn readgs() -> usize {
 	let val: u64;
 	unsafe {
+		isolation_start!();
 		asm!("rdgsbase $0" : "=r"(val) ::: "volatile");
+		isolation_end!();
 	}
 	val as usize
 }
@@ -970,14 +1034,18 @@ pub fn readgs() -> usize {
 #[inline]
 pub fn writefs(fs: usize) {
 	unsafe {
+		isolation_start!();
 		asm!("wrfsbase $0" :: "r"(fs as u64) :: "volatile");
+		isolation_end!();
 	}
 }
 
 #[inline]
 pub fn writegs(gs: usize) {
 	unsafe {
+		isolation_start!();
 		asm!("wrgsbase $0" :: "r"(gs as u64) :: "volatile");
+		isolation_end!();
 	}
 }
 

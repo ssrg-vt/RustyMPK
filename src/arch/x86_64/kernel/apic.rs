@@ -15,15 +15,17 @@ use arch::x86_64::kernel::percore::*;
 use arch::x86_64::kernel::processor;
 #[cfg(not(test))]
 use arch::x86_64::kernel::smp_boot_code::SMP_BOOT_CODE;
-use arch::x86_64::kernel::BOOT_INFO;
+use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
+use arch::x86_64::kernel::copy_safe::*;
 use arch::x86_64::mm::paging;
 use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
 use arch::x86_64::mm::virtualmem;
 use config::*;
 use core::sync::atomic::spin_loop_hint;
 use core::{cmp, fmt, intrinsics, mem, ptr, u32};
-use core::intrinsics::{volatile_store, volatile_load};
+use core::intrinsics::volatile_load;
 use core::ptr::copy_nonoverlapping;
+use core::mem::size_of;
 use environment;
 use mm;
 use scheduler;
@@ -137,7 +139,7 @@ impl fmt::Display for IoApicRecord {
 extern "x86-interrupt" fn tlb_flush_handler(_stack_frame: &mut irq::ExceptionStackFrame) {
 	debug!("Received TLB Flush Interrupt");
 	unsafe {
-		isolate_function_strong!(cr3_write(cr3()));
+		cr3_write(cr3());
 	}
 	eoi();
 }
@@ -432,7 +434,7 @@ pub fn set_oneshot_timer(wakeup_time: Option<u64>) {
 				APIC_LVT_TIMER_TSC_DEADLINE | u64::from(TIMER_INTERRUPT_NUMBER),
 			);
 			unsafe {
-				isolate_function_strong!(wrmsr(IA32_TSC_DEADLINE, tsc_deadline));
+				wrmsr(IA32_TSC_DEADLINE, tsc_deadline);
 			}
 		} else {
 			// Calculate the relative timeout from the absolute wakeup time.
@@ -463,10 +465,10 @@ pub fn init_x2apic() {
 	if processor::supports_x2apic() {
 		// The CPU supports the modern x2APIC mode, which uses MSRs for communication.
 		// Enable it.
-		let mut apic_base = unsafe { isolate_function_strong!(rdmsr(IA32_APIC_BASE)) };
+		let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
 		apic_base |= X2APIC_ENABLE;
 		unsafe {
-			isolate_function_strong!(wrmsr(IA32_APIC_BASE, apic_base));
+			wrmsr(IA32_APIC_BASE, apic_base);
 		}
 	}
 }
@@ -477,12 +479,15 @@ pub fn init_next_processor_variables(core_id: usize) {
 	// Keep the stack executable to possibly support dynamically generated code on the stack (see https://security.stackexchange.com/a/47825).
 	let stack = mm::allocate(KERNEL_STACK_SIZE, false);
 	let boxed_percore = Box::new(PerCoreVariables::new(core_id));
+	let percore_ptr = Box::into_raw(boxed_percore) as u64;
 	unsafe {
-		isolate_function_strong!(volatile_store(&mut (*BOOT_INFO).current_stack_address, stack as u64));
-		isolate_function_strong!(volatile_store(
-			&mut (*BOOT_INFO).current_percore_address,
-			Box::into_raw(boxed_percore) as u64,
-		));
+		copy_from_safe(BOOT_INFO, size_of::<BootInfo>());
+		isolation_start!();
+		intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).current_stack_address, stack as u64);
+		intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).current_percore_address, percore_ptr,);
+		isolation_end!();
+		copy_to_safe(BOOT_INFO, size_of::<BootInfo>());
+		clear_unsafe_storage();
 	}
 }
 
@@ -518,7 +523,7 @@ pub fn boot_application_processors() {
 
 	unsafe {
 		// Pass the PML4 page table address to the boot code.
-                isolation_start!();
+        isolation_start!();
 		*((SMP_BOOT_CODE_ADDRESS + SMP_BOOT_CODE_OFFSET_PML4) as *mut u32) = cr3() as u32;
 		// Set entry point
 		//debug!(
@@ -527,7 +532,7 @@ pub fn boot_application_processors() {
 		//);
 		*((SMP_BOOT_CODE_ADDRESS + SMP_BOOT_CODE_OFFSET_ENTRY) as *mut usize) =
 			arch::x86_64::kernel::start::_start as usize;
-                isolation_end!();
+        isolation_end!();
 	}
 
 	// Now wake up each application processor.
@@ -633,7 +638,7 @@ fn translate_x2apic_msr_to_xapic_address(x2apic_msr: u32) -> usize {
 fn local_apic_read(x2apic_msr: u32) -> u32 {
 	if processor::supports_x2apic() {
 		// x2APIC is simple, we can just read from the given MSR.
-		unsafe { isolate_function_strong!(rdmsr(x2apic_msr)) as u32 }
+		unsafe { rdmsr(x2apic_msr) as u32 }
 	} else {
 		unsafe { 
                     isolation_start!();
@@ -646,13 +651,15 @@ fn local_apic_read(x2apic_msr: u32) -> u32 {
 
 fn ioapic_write(reg: u32, value: u32) {
 	unsafe {
-                share!(IOAPIC_ADDRESS);
-		isolate_function_strong!(volatile_store(IOAPIC_ADDRESS as *mut u32, reg));
-		isolate_function_strong!(volatile_store(
+        share!(IOAPIC_ADDRESS);
+		isolation_start!();
+		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
+		intrinsics::volatile_store(
 			(IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *mut u32,
 			value,
-		));
-                unshare!(IOAPIC_ADDRESS);
+		);
+		isolation_end!();
+        unshare!(IOAPIC_ADDRESS);
 	}
 }
 
@@ -660,10 +667,12 @@ fn ioapic_read(reg: u32) -> u32 {
 	let value;
 
 	unsafe {
-                share!(IOAPIC_ADDRESS);
-		isolate_function_strong!(volatile_store(IOAPIC_ADDRESS as *mut u32, reg));
-		value = isolate_function_strong!(volatile_load((IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *const u32));
-                unshare!(IOAPIC_ADDRESS);
+        share!(IOAPIC_ADDRESS);
+		isolation_start!();
+		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
+		value = intrinsics::volatile_load((IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *const u32);
+		isolation_end!();
+        unshare!(IOAPIC_ADDRESS);
 	}
 
 	value
@@ -681,7 +690,7 @@ fn local_apic_write(x2apic_msr: u32, value: u64) {
 	if processor::supports_x2apic() {
 		// x2APIC is simple, we can just write the given value to the given MSR.
 		unsafe {
-			isolate_function_strong!(wrmsr(x2apic_msr, value));
+			wrmsr(x2apic_msr, value);
 		}
 	} else {
 		if x2apic_msr == IA32_X2APIC_ICR {
@@ -714,7 +723,7 @@ fn local_apic_write(x2apic_msr: u32, value: u64) {
 			// The ICR1 register in xAPIC mode also has a Delivery Status bit that must be checked.
 			// Wait until the CPU clears it.
 			// This bit does not exist in x2APIC mode (cf. Intel Vol. 3A, 10.12.9).
-			while (unsafe { isolate_function_strong!(volatile_load(value_ref)) }
+			while (unsafe {isolation_wrapper!(volatile_load(value_ref))}
 				& APIC_ICR_DELIVERY_STATUS_PENDING)
 				> 0
 			{

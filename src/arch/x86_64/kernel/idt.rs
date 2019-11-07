@@ -11,9 +11,10 @@
 use arch::x86_64::kernel::gdt;
 use core::sync::atomic::{AtomicBool, Ordering};
 use x86::bits64::paging::VAddr;
-use x86::dtables::{self, DescriptorTablePointer};
+use x86::dtables::{self, DescriptorTablePointer, lidt};
 use x86::segmentation::{SegmentSelector, SystemDescriptorTypes64};
 use x86::Ring;
+use mm;
 
 /// An interrupt gate descriptor.
 ///
@@ -115,7 +116,7 @@ pub fn install() {
 			IDTP = DescriptorTablePointer::new_from_slice(&IDT);
 		};
 
-		dtables::lidt(&IDTP);
+		lidt(&IDTP);
 	}
 }
 

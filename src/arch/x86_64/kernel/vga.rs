@@ -78,11 +78,15 @@ impl VgaScreen {
 
 	#[inline]
 	fn clear_row(&mut self, row: usize) {
+		let buffer_ref;
+		unsafe {
+			isolation_start!();
+			buffer_ref = &mut *(self.buffer);
+			isolation_end!();
+		}
 		// Overwrite this row by a bogus character in black.
 		for c in 0..COLS {
-			unsafe {
-				(*self.buffer)[row][c] = VgaCharacter::new(0, ATTRIBUTE_BLACK);
-			}
+			(*buffer_ref)[row][c] = VgaCharacter::new(0, ATTRIBUTE_BLACK);
 		}
 	}
 
@@ -99,12 +103,16 @@ impl VgaScreen {
 
 		// Check if we have hit the end of the screen rows.
 		if self.current_row == ROWS {
+			let buffer_ref;
+			unsafe {
+				isolation_start!();
+				buffer_ref = &mut *(self.buffer);
+				isolation_end!();
+			}
 			// Shift all rows up by one line, removing the oldest visible screen row.
 			for r in 1..ROWS {
 				for c in 0..COLS {
-					unsafe {
-						(*self.buffer)[r - 1][c] = (*self.buffer)[r][c];
-					}
+					(*buffer_ref)[r - 1][c] = (*self.buffer)[r][c];
 				}
 			}
 
@@ -114,11 +122,15 @@ impl VgaScreen {
 		}
 
 		if byte != b'\n' {
-			// Put our character into the VGA screen buffer and advance the column counter.
+			let buffer_ref;
 			unsafe {
-				(*self.buffer)[self.current_row][self.current_col] =
-					VgaCharacter::new(byte, ATTRIBUTE_LIGHTGREY);
+				isolation_start!();
+				buffer_ref = &mut *(self.buffer);
+				isolation_end!();
 			}
+			// Put our character into the VGA screen buffer and advance the column counter.
+			(*buffer_ref)[self.current_row][self.current_col] =
+				VgaCharacter::new(byte, ATTRIBUTE_LIGHTGREY);
 			self.current_col += 1;
 		}
 	}

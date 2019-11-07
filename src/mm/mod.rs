@@ -74,21 +74,22 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 	let mut i: usize = 0;
 	let mut flags = PageTableEntryFlags::empty();
 
-        if virt_addr == 0x600000 {
-            //info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-	    	flags.normal().writable().execute_disable();
-	    	//flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
-        }
-        else {
-        	//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-	    	flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
-        }
+	if virt_addr == 0x600000 {
+		//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+		flags.normal().writable().execute_disable();
+		//flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
+	}
+	else {
+		//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
+		flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+	}
 
 	while i < align_down!(size, S::SIZE) {
 		match arch::mm::physicalmem::allocate_aligned(S::SIZE, S::SIZE) {
 			Ok(phys_addr) => {
 				arch::mm::paging::map::<S>(virt_addr + i, phys_addr, 1, flags);
-                                i += S::SIZE;
+				//arch::mm::paging::print_page_table_entry::<arch::mm::paging::LargePageSize>(virt_addr + i);
+                i += S::SIZE;
 			}
 			Err(_) => {
 				error!("Unable to allocate page frame of size 0x{:x}", S::SIZE);
@@ -116,10 +117,10 @@ pub fn init() {
 		arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(KERNEL_START_ADDRESS, (KERNEL_END_ADDRESS - KERNEL_START_ADDRESS)/LargePageSize::SIZE, SAFE_MEM_REGION);
 	}
 
-        arch::mm::init();
-		arch::mm::init_page_tables();    
-        arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, BOOT_MEM_REGION);
-        arch::mm::paging::print_page_table_entry::<LargePageSize>(0x0 as usize);
+	arch::mm::init();
+	arch::mm::init_page_tables();    
+	/* Protect the first page containing BIOS, boot loader data */
+	arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, BOOT_MEM_REGION);
 
 	info!("Total memory size: {} MB", total_memory_size() >> 20);
 
@@ -130,10 +131,11 @@ pub fn init() {
 	let npage_2tables = npage_3tables / (BasePageSize::SIZE / mem::align_of::<usize>()) + 1;
 	let npage_1tables = npage_2tables / (BasePageSize::SIZE / mem::align_of::<usize>()) + 1;
 	let reserved_space =
-		(npage_3tables + npage_2tables + npage_1tables) * BasePageSize::SIZE + 2*LargePageSize::SIZE;
+		(npage_3tables + npage_2tables + npage_1tables) * BasePageSize::SIZE + LargePageSize::SIZE;
 	let has_1gib_pages = arch::processor::supports_1gib_pages();
 
 	//info!("reserved space {} KB", reserved_space >> 10);
+	info!("reserved space {:#X}", reserved_space);
 
 	if total_memory_size() < kernel_end_address() + reserved_space + LargePageSize::SIZE {
 		error!("No enough memory available!");
@@ -214,6 +216,10 @@ pub fn init() {
 			// fall back to large pages
 			counter = map_heap::<LargePageSize>(virt_addr, LargePageSize::SIZE);
 		}
+		//arch::mm::paging::set_pkey_on_page_table_entry::<arch::mm::paging::LargePageSize>(0x600000, 1, SAFE_MEM_REGION);
+		//arch::mm::paging::print_page_table_entry::<arch::mm::paging::LargePageSize>(0x400000);
+		//arch::mm::paging::print_page_table_entry::<arch::mm::paging::LargePageSize>(0x600000);
+		//arch::mm::paging::print_page_table_entry::<arch::mm::paging::LargePageSize>(0x800000);
 
 		unsafe {
 			HEAP_START_ADDRESS = virt_addr;

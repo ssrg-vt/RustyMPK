@@ -7,10 +7,13 @@
 
 use arch::x86_64::kernel::irq;
 use arch::x86_64::kernel::processor;
-use arch::x86_64::kernel::BOOT_INFO;
+use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
+use arch::x86_64::kernel::copy_safe::*;
 use core::intrinsics;
+use core::mem;
 use core::sync::atomic::spin_loop_hint;
 use environment;
+use mm;
 use x86::io::*;
 
 const CMOS_COMMAND_PORT: u16 = 0x70;
@@ -226,7 +229,16 @@ fn date_from_microseconds(microseconds_since_epoch: u64) -> (u16, u8, u8, u8, u8
 }
 
 pub fn get_boot_time() -> u64 {
-	unsafe { intrinsics::volatile_load(&(*BOOT_INFO).boot_gtod) }
+	let boot_gtod;
+	unsafe {
+		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		isolation_start!();
+		boot_gtod = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).boot_gtod);
+		isolation_end!();
+		clear_unsafe_storage();
+
+		return boot_gtod;
+	}
 }
 
 pub fn init() {
@@ -237,7 +249,15 @@ pub fn init() {
 		// Subtract the timer ticks to get the actual time when HermitCore-rs was booted.
 		let rtc = Rtc::new();
 		microseconds_offset = rtc.get_microseconds_since_epoch() - processor::get_timer_ticks();
-		unsafe { intrinsics::volatile_store(&mut (*BOOT_INFO).boot_gtod, microseconds_offset) }
+
+		unsafe {
+			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			isolation_start!();
+			intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).boot_gtod, microseconds_offset);
+			isolation_end!();
+			copy_to_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			clear_unsafe_storage();
+		}
 	}
 
 	let (year, month, day, hour, minute, second) = date_from_microseconds(microseconds_offset);

@@ -8,11 +8,11 @@
 
 use alloc::boxed::Box;
 use arch::x86_64::kernel::percore::*;
-use arch::x86_64::kernel::BOOT_INFO;
+use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
+use arch::x86_64::kernel::copy_safe::*;
 use arch::x86_64::mm::paging;
 use config::*;
 use core::{intrinsics, mem};
-use core::intrinsics::volatile_load;
 use scheduler::task::TaskStatus;
 use x86::bits64::segmentation::*;
 use x86::bits64::task::*;
@@ -20,7 +20,7 @@ use x86::dtables::{self, DescriptorTablePointer};
 use x86::segmentation::*;
 use x86::task::*;
 use x86::Ring;
-use ::mm;
+use mm;
 
 pub const GDT_NULL: u16 = 0;
 pub const GDT_KERNEL_CODE: u16 = 1;
@@ -36,10 +36,10 @@ const GDT_ENTRIES: usize = 8192;
 const IST_ENTRIES: usize = 4;
 
 isolate_global_var!(static mut GDT: *mut Gdt = 0 as *mut Gdt);
-isolate_global_var!(static mut GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
+static mut GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
 	base: 0 as *const Descriptor,
 	limit: 0,
-});
+};
 
 struct Gdt {
 	entries: [Descriptor; GDT_ENTRIES],
@@ -49,7 +49,7 @@ pub fn init() {
     let gdt_ref;
 	unsafe {
 		// Dynamically allocate memory for the GDT.
-		GDT = ::mm::unsafe_allocate(mem::size_of::<Gdt>(), true) as *mut Gdt;
+		GDT = ::mm::allocate(mem::size_of::<Gdt>(), true) as *mut Gdt;
 
         // Get gdt reference
         isolation_start!();
@@ -84,8 +84,8 @@ pub fn init() {
 }
 
 pub fn add_current_core() {
-	unsafe {
-        isolation_start!();
+	unsafe { /* FIXME */
+        //isolation_start!();
 		// Load the GDT for the current core.
 		dtables::lgdt(&GDTR);
 
@@ -94,7 +94,7 @@ pub fn add_current_core() {
 		load_ds(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
 		load_es(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
 		load_ss(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
-        isolation_end!();
+        //isolation_end!();
 	}
 
 	// Dynamically allocate memory for a Task-State Segment (TSS) for this core.
@@ -102,9 +102,13 @@ pub fn add_current_core() {
 
 	// Every task later gets its own stack, so this boot stack is only used by the Idle task on each core.
 	// When switching to another task on this core, this entry is replaced.
-	
+
 	unsafe {
-		boxed_tss.rsp[0] = isolate_function_strong!(volatile_load(&(*BOOT_INFO).current_stack_address)) + KERNEL_STACK_SIZE as u64 - 0x10;
+		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		isolation_start!();
+		boxed_tss.rsp[0] = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
+		isolation_end!();
+		clear_unsafe_storage();
 	}
 
 	// Allocate all ISTs for this core.
@@ -129,20 +133,20 @@ pub fn add_current_core() {
 				.dpl(Ring::Ring0)
 				.finish();
             unsafe {
-                isolation_start!();
+                //isolation_start!();
 			    (*GDT).entries[idx..idx + 2].copy_from_slice(&mem::transmute::<Descriptor64, [Descriptor; 2]>(tss_descriptor,));
-                isolation_end!();
+                //isolation_end!();
             }
 		}
 
 		// Load it.
 		let sel = SegmentSelector::new(idx as u16, Ring::Ring0);
 	unsafe {
-        isolation_start!();
         load_tr(sel);
 	    // Store it in the PerCoreVariables structure for further manipulation.
+		//isolation_start!();
 	    PERCORE.tss.set(tss);
-        isolation_end!();
+        //isolation_end!();
 	}
 }
 

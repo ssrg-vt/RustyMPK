@@ -15,10 +15,13 @@ use arch::x86_64::kernel::idt;
 use arch::x86_64::kernel::irq;
 use arch::x86_64::kernel::percore::*;
 use arch::x86_64::kernel::processor;
+use arch::x86_64::kernel::copy_safe::*;
 use config::*;
 use core::cell::RefCell;
 use core::{mem, ptr};
+use core::ptr::{copy_nonoverlapping, write_bytes};
 use environment;
+use mm;
 use scheduler::task::{Task, TaskFrame, TaskTLS};
 
 #[repr(C, packed)]
@@ -155,7 +158,16 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 			// fs:0 is where tls_pointer points to and we have reserved space for a usize value above.
 			*(tls_pointer as *mut usize) = tls_pointer;
 
-			// Copy over TLS variables with their initial values.
+			/* Copy TLS variables with their initial values on the UNSAFE_STORAGE.
+        	   Then copy back the TLS variables with their initial values on tls.address()
+			*/
+			/*
+			list_add(environment::get_tls_start());
+			list_add(tls.address());
+			copy_from_safe(environment::get_tls_start() as *const u8, tdata_size);
+			copy_to_safe(tls.address() as *mut u8, tls_size);
+			clear_unsafe_storage();
+			*/
 			ptr::copy_nonoverlapping(
 				environment::get_tls_start() as *const u8,
 				tls.address() as *mut u8,

@@ -215,12 +215,19 @@ extern "C" fn initd(_arg: usize) {
 
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
-
-    //unsafe {
-    //    info!("percore: {:#X}", arch::x86_64::kernel::percore::PERCORE.tss.get() as usize);
-    //}
-
-
+/*	
+	unsafe {
+		//isolation_start!();
+		//let cpu_frequency = arch::x86_64::kernel::processor::get_frequency();
+		//isolation_start!();
+		//info!("cpu frequency: {:#X}", cpu_frequency);
+		//info!("gs: {:#X}", processor::readgs());
+		//asm!("swapgs" :::: "volatile");
+		//info!("gs: {:#X}", processor::readgs());
+		//asm!("swapgs" :::: "volatile");
+		//info!("gs: {:#X}", processor::readgs());
+	}
+*/
 	unsafe /*FIXME*/{
 		// And finally start the application.
 		runtime_entry(argc, argv, environ);

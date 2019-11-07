@@ -139,6 +139,33 @@ macro_rules! isolation_end {
 	};
 }
 
+macro_rules! isolation_wrapper {
+	($f:ident($($x:tt)*)) => {{
+		asm!("mov $0, %eax;
+			  xor %ecx, %ecx;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
+			:
+			: "r"(mm::PKRU_PERMISSION)
+			: "eax", "ecx", "edx"
+			: "volatile");
+
+		let temp_ret = $f($($x)*);
+
+		asm!("xor %eax, %eax;
+			  xor %ecx, %ecx;
+			  xor %edx, %edx;
+			  wrpkru;
+              lfence"
+			:
+			:
+			: "eax", "ecx", "edx"
+			: "volatile");
+		temp_ret
+	}};
+}
+
 macro_rules! print_this_page {
     ($addr: expr) => {
 		use x86_64::mm::paging::{BasePageSize, LargePageSize, print_page_table_entry};
@@ -232,7 +259,7 @@ macro_rules! unshare_local_var {
 #[cfg(feature = "shm")]
 macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
-		info!("shm enabled");
+		//info!("shm enabled");
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
@@ -283,9 +310,8 @@ macro_rules! isolate_function_weak {
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
-/*
-	($p:ident.$f:ident($($x:tt)*)) => {{
-		info!("shm enabled");
+
+	($p:tt.$f:ident($($x:tt)*)) => {{
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
@@ -311,13 +337,13 @@ macro_rules! isolate_function_weak {
 
 		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
-			  mov $$0xC, %eax;
+			  mov $1, %eax;
 			  xor %ecx, %ecx;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence"
 			: 
-			: "r"(__isolated_stack)
+			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -336,7 +362,6 @@ macro_rules! isolate_function_weak {
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
-*/
 }
 
 /* Don't use COPYING for now.
@@ -475,7 +500,7 @@ macro_rules! isolate_function_strong {
 		temp_ret
 	}};
 		
-	($p:ident.$f:ident($($x:tt)*)) => {{
+	($p:tt.$f:ident($($x:tt)*)) => {{
 		use x86_64::kernel::percore::core_scheduler;
         use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
