@@ -14,6 +14,7 @@ use arch::scheduler::TaskStacks;
 use collections::{DoublyLinkedList, Node};
 use core::cell::RefCell;
 use core::fmt;
+use core::ptr::{write_bytes, copy_nonoverlapping};
 use mm;
 use scheduler;
 use synch::spinlock::SpinlockIrqSave;
@@ -304,6 +305,7 @@ impl PriorityTaskQueue {
 pub struct TaskTLS {
 	address: usize,
 	size: usize,
+	unsafe_storage: usize,
 }
 
 impl TaskTLS {
@@ -314,11 +316,29 @@ impl TaskTLS {
 		Self {
 			address: mm::allocate(memory_size, true),
 			size: memory_size,
+			unsafe_storage: mm::unsafe_allocate(memory_size, true),
 		}
 	}
 
 	pub fn address(&self) -> usize {
 		self.address
+	}
+
+	pub fn get_unsafe_storage(&self) -> usize {
+		self.unsafe_storage
+	}
+
+	pub fn copy_from_safe(&self) {
+		unsafe {
+			copy_nonoverlapping(self.address as *const u8, self.unsafe_storage as *mut u8, self.size);
+		}
+	}
+
+	pub fn copy_to_safe(&self) {
+		unsafe {
+			copy_nonoverlapping(self.unsafe_storage as *const u8, self.address as *mut u8, self.size);
+			write_bytes(self.unsafe_storage as *mut u8, 0x00, self.size);
+		}
 	}
 }
 
@@ -329,6 +349,7 @@ impl Drop for TaskTLS {
 			self.address, self.size
 		);
 		mm::deallocate(self.address, self.size);
+		mm::deallocate(self.unsafe_storage, self.size);
 	}
 }
 

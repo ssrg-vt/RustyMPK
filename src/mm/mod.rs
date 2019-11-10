@@ -14,7 +14,6 @@ mod test;
 use arch;
 use arch::mm::paging::{BasePageSize, HugePageSize, LargePageSize, PageSize, PageTableEntryFlags};
 use arch::mm::physicalmem::total_memory_size;
-use arch::mm::mpk;
 #[cfg(feature = "newlib")]
 use arch::mm::virtualmem::kernel_heap_end;
 use core::mem;
@@ -157,8 +156,8 @@ pub fn init() {
 		info!("An application with a C-based runtime is running on top of HermitCore!");
 
 		let size = 2 * LargePageSize::SIZE;
+		let start = allocate(size, true);
 		unsafe {
-			let start = allocate(size, true);
 			::ALLOCATOR.lock().init(start, size);
 		}
 

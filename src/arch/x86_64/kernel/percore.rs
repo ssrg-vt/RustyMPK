@@ -8,11 +8,11 @@
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
 use arch::x86_64::kernel::processor;
-use core::{intrinsics, ptr, mem};
+use core::{intrinsics, ptr};
 use scheduler::PerCoreScheduler;
-use mm;
 use x86::bits64::task::TaskStateSegment;
 use x86::msr::*;
+use mm;
 
 pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0);
 
@@ -42,7 +42,9 @@ pub struct PerCoreVariable<T> {
 
 pub trait PerCoreVariableMethods<T> {
 	unsafe fn get(&self) -> T;
+	fn safe_get(&self) -> T;
 	unsafe fn set(&self, value: T);
+	fn safe_set(&self, value: T);
 }
 
 impl<T> PerCoreVariable<T> {
@@ -70,8 +72,37 @@ impl<T> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 	}
 
 	#[inline]
+	default fn safe_get(&self) -> T {
+		let value: T;
+		list_add(processor::readgs());
+		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		unsafe {
+			let offset = self.offset();
+			isolation_start!();
+			asm!("swapgs; movq %gs:($1), $0; swapgs" : "=r"(value) : "r"(offset) :: "volatile");
+			isolation_end!();
+		}
+		clear_unsafe_storage();
+		value
+	}
+
+	#[inline]
 	default unsafe fn set(&self, value: T) {
 		asm!("movq $0, %gs:($1)" :: "r"(value), "r"(self.offset()) :: "volatile");
+	}
+
+	#[inline]
+	default fn safe_set(&self, value: T) {
+		list_add(processor::readgs());
+		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		unsafe {
+			let offset = self.offset();
+			isolation_start!();
+			asm!("swapgs; movq $0, %gs:($1); swapgs" :: "r"(value), "r"(offset) :: "volatile");
+			isolation_end!();
+		}
+		copy_to_safe(processor::readgs() as *mut PerCoreVariables, 1);			
+		clear_unsafe_storage();
 	}
 }
 
@@ -90,34 +121,49 @@ impl<T: Is32BitVariable> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 	}
 
 	#[inline]
+	fn safe_get(&self) -> T {
+		let value: T;
+		list_add(processor::readgs());
+		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		unsafe {
+			let offset = self.offset();
+			isolation_start!();
+			asm!("swapgs; movq %gs:($1), $0; swapgs" : "=r"(value) : "r"(offset) :: "volatile");
+			isolation_end!();
+		}
+		clear_unsafe_storage();
+		value
+	}
+
+	#[inline]
 	unsafe fn set(&self, value: T) {
 		asm!("movl $0, %gs:($1)" :: "r"(value), "r"(self.offset()) :: "volatile");
+	}
+
+	#[inline]
+	fn safe_set(&self, value: T) {
+		list_add(processor::readgs());
+		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		unsafe {
+			let offset = self.offset();
+			isolation_start!();
+			asm!("swapgs; movq $0, %gs:($1); swapgs" :: "r"(value), "r"(offset) :: "volatile");
+			isolation_end!();
+		}
+		copy_to_safe(processor::readgs() as *mut PerCoreVariables, 1);			
+		clear_unsafe_storage();
 	}
 }
 
 #[cfg(not(test))]
 #[inline]
 pub fn core_id() -> usize {
-	//if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { /* FIXME */
-			PERCORE.core_id.get()
-		}
-	//}
-/*
-	else {
-		unsafe {
-			//PERCORE.core_id.get()
-			//let offset = (*(UNSAFE_STORAGE as *const PerCoreVariables)).core_id as *const _ as usize - UNSAFE_STORAGE;
-			let value: usize;
-			copy_from_safe(&PERCORE, mem::size_of::<PerCoreVariables>());
-			//isolation_start!();
-			//asm!("swapgs" :::: "volatile");
-			clear_unsafe_storage();
-			//isolation_start!();
-			value
-		}
+	if is_unsafe_storage_init() {
+		unsafe { PERCORE.core_id.safe_get() }
 	}
-*/
+	else {
+		unsafe { PERCORE.core_id.get() }
+	}
 }
 
 #[cfg(test)]
@@ -127,36 +173,45 @@ pub fn core_id() -> usize {
 
 #[inline]
 pub fn core_scheduler() -> &'static mut PerCoreScheduler {
-	unsafe { &mut *PERCORE.scheduler.get() }
+	if is_unsafe_storage_init() {
+		unsafe { &mut *PERCORE.scheduler.safe_get() }
+	}
+	else {
+		unsafe { &mut *PERCORE.scheduler.get() }
+	}
 }
 
 #[inline]
 pub fn set_core_scheduler(scheduler: *mut PerCoreScheduler) {
-	unsafe {
-		PERCORE.scheduler.set(scheduler);
+	if is_unsafe_storage_init() {
+		unsafe {
+			PERCORE.scheduler.safe_set(scheduler);
+		}
+	}
+	else {
+		unsafe {
+			PERCORE.scheduler.set(scheduler);
+		}
 	}
 }
 
 pub fn init() {
 	unsafe { /* FIXME */
 		let address;
-		//if UNSAFE_STORAGE == 0 {
-		// Store the address to the PerCoreVariables structure allocated for this core in GS.
-		address = intrinsics::volatile_load(&(*BOOT_INFO).current_percore_address);
-		//}
-		/*
-		else {
-			error!("else");
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
-			//isolation_start!();
-			address = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).current_percore_address);
-			//isolation_start!();
+		if is_unsafe_storage_init() {
+			let unsafe_storage = get_unsafe_storage();
+			copy_from_safe(BOOT_INFO, 1);
+			isolation_start!();
+			address = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).current_percore_address);
+			isolation_end!();
 			clear_unsafe_storage();
 		}
-		*/
+		else {
+			// Store the address to the PerCoreVariables structure allocated for this core in GS.
+			address = intrinsics::volatile_load(&(*BOOT_INFO).current_percore_address);
+		}
 		if address == 0 {
 			wrmsr(IA32_GS_BASE, &PERCORE as *const _ as u64);
-			list_add(&PERCORE as *const PerCoreVariables as usize);
 		} else {
 			wrmsr(IA32_GS_BASE, address as u64);
 		}

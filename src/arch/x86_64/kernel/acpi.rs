@@ -8,7 +8,7 @@
 use arch::x86_64::mm::paging;
 use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
 use arch::x86_64::mm::virtualmem;
-use core::{mem, slice, str};
+use core::{mem, str};
 use core::str::from_utf8_unchecked;
 use core::slice::from_raw_parts;
 use x86::io::*;

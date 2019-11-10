@@ -16,7 +16,7 @@ use arch::x86_64::kernel::pit;
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
 use core::sync::atomic::spin_loop_hint;
-use core::{fmt, intrinsics, u32, mem};
+use core::{fmt, intrinsics, u32};
 use environment;
 use x86::controlregs::*;
 use x86::cpuid::*;
@@ -319,13 +319,13 @@ impl CpuFrequency {
 
 	unsafe fn detect_from_hypervisor(&mut self) -> Result<(), ()> {
 		let cpu_freq;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
-			isolation_start!();
-			cpu_freq = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).cpu_freq);
-			isolation_end!();
-			clear_unsafe_storage();
-		}
+		let unsafe_storage = get_unsafe_storage();
+		copy_from_safe(BOOT_INFO, 1);
+		isolation_start!();
+		cpu_freq = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).cpu_freq);
+		isolation_end!();
+		clear_unsafe_storage();
+
 		if cpu_freq > 0 {
 			self.mhz = cpu_freq as u16;
 			self.source = CpuFrequencySources::Hypervisor;
@@ -373,25 +373,24 @@ impl CpuFrequency {
 
 		// Determine the current timer tick.
 		// We are probably loading this value in the middle of a time slice.
-		let first_tick = unsafe { 
-				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
-				isolation_start!();
-				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
-			};
-			unsafe {
-				isolation_end!();
-				clear_unsafe_storage();
-			}
+		let unsafe_storage = get_unsafe_storage();
+		let first_tick;
+		unsafe { 
+			copy_from_safe(&MEASUREMENT_TIMER_TICKS, 1);
+			isolation_start!();
+			first_tick = intrinsics::volatile_load(&(unsafe_storage as *const u64)) as u64;
+			isolation_end!();
+			clear_unsafe_storage();
+		}
 
 		// Wait until the tick count changes.
 		// As soon as it has done, we are at the start of a new time slice.
 		let start_tick = loop {
-			let tick = unsafe {
-				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
-				isolation_start!();
-				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
-			};
+			let tick;
 			unsafe {
+				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 1);
+				isolation_start!();
+				tick = intrinsics::volatile_load(&(unsafe_storage as *const u64)) as u64;
 				isolation_end!();
 				clear_unsafe_storage();
 			}
@@ -406,12 +405,11 @@ impl CpuFrequency {
 		let start = get_timestamp();
 
 		loop {
-			let tick = unsafe {
-				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 64);
-				isolation_start!();
-				intrinsics::volatile_load(&(UNSAFE_STORAGE as *const u64)) as u64
-			};
+			let tick;
 			unsafe {
+				copy_from_safe(&MEASUREMENT_TIMER_TICKS, 1);
+				isolation_start!();
+				tick = intrinsics::volatile_load(&(unsafe_storage as *const u64)) as u64;
 				isolation_end!();
 				clear_unsafe_storage();
 			}
@@ -849,8 +847,8 @@ pub fn configure() {
 pub fn detect_frequency() {
 	unsafe {
 		CPU_FREQUENCY.detect(); /* FIXME */
-		//copy_from_safe(&CPU_FREQUENCY, size_of::<CpuFrequency>());
-		//isolate_function_weak!((*(UNSAFE_STORAGE as *mut CpuFrequency)).detect());
+		//copy_from_safe(&CPU_FREQUENCY, 1);
+		//isolate_function_weak!((*(get_unsafe_storage() as *mut CpuFrequency)).detect());
 		//clear_unsafe_storage();
 	}
 }
@@ -999,13 +997,14 @@ pub fn get_timer_ticks() -> u64 {
 }
 
 pub fn get_frequency() -> u16 {
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-            copy_from_safe(&CPU_FREQUENCY, mem::size_of::<CpuFrequency>());
-			isolation_start!();
-			let frequency = (*(UNSAFE_STORAGE as *const CpuFrequency)).mhz;
-			isolation_end!();
-			clear_unsafe_storage();
-			return frequency;
+		copy_from_safe(&CPU_FREQUENCY, 1);
+		isolation_start!();
+		let frequency = (*(unsafe_storage as *const CpuFrequency)).mhz;
+		isolation_end!();
+		clear_unsafe_storage();
+		return frequency;
     }
 }
 

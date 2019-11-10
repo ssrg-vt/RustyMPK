@@ -22,10 +22,9 @@ use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
 use arch::x86_64::mm::virtualmem;
 use config::*;
 use core::sync::atomic::spin_loop_hint;
-use core::{cmp, fmt, intrinsics, mem, ptr, u32};
+use core::{cmp, fmt, intrinsics, mem, u32};
 use core::intrinsics::volatile_load;
 use core::ptr::copy_nonoverlapping;
-use core::mem::size_of;
 use environment;
 use mm;
 use scheduler;
@@ -72,8 +71,8 @@ const SMP_BOOT_CODE_OFFSET_ENTRY: usize = 0x08;
 
 const X2APIC_ENABLE: u64 = 1 << 10;
 
-isolate_global_var!(static mut LOCAL_APIC_ADDRESS: usize = 0);
-isolate_global_var!(static mut IOAPIC_ADDRESS: usize = 0);
+static mut LOCAL_APIC_ADDRESS: usize = 0;
+static mut IOAPIC_ADDRESS: usize = 0;
 
 /// Stores the Local APIC IDs of all CPUs. The index equals the Core ID.
 /// Both numbers often match, but don't need to (e.g. when a core has been disabled).
@@ -480,13 +479,14 @@ pub fn init_next_processor_variables(core_id: usize) {
 	let stack = mm::allocate(KERNEL_STACK_SIZE, false);
 	let boxed_percore = Box::new(PerCoreVariables::new(core_id));
 	let percore_ptr = Box::into_raw(boxed_percore) as u64;
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-		intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).current_stack_address, stack as u64);
-		intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).current_percore_address, percore_ptr,);
+		intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).current_stack_address, stack as u64);
+		intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).current_percore_address, percore_ptr,);
 		isolation_end!();
-		copy_to_safe(BOOT_INFO, size_of::<BootInfo>());
+		copy_to_safe(BOOT_INFO, 1);
 		clear_unsafe_storage();
 	}
 }
@@ -513,8 +513,7 @@ pub fn boot_application_processors() {
 	flags.normal().writable(); /*FIXME*/
 	paging::map::<BasePageSize>(SMP_BOOT_CODE_ADDRESS, SMP_BOOT_CODE_ADDRESS, 1, flags);
 	unsafe {
-            isolate_function_strong!(
-		copy_nonoverlapping(
+        isolate_function_strong!(copy_nonoverlapping(
 			&SMP_BOOT_CODE as *const u8,
 			SMP_BOOT_CODE_ADDRESS as *mut u8,
 			SMP_BOOT_CODE.len(),
@@ -651,15 +650,17 @@ fn local_apic_read(x2apic_msr: u32) -> u32 {
 
 fn ioapic_write(reg: u32, value: u32) {
 	unsafe {
-        share!(IOAPIC_ADDRESS);
+		let unsafe_storage = get_unsafe_storage();
+		copy_from_safe(IOAPIC_ADDRESS as *const u8, 4096);
 		isolation_start!();
-		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
+		intrinsics::volatile_store(unsafe_storage as *mut u32, reg);
 		intrinsics::volatile_store(
-			(IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *mut u32,
+			(unsafe_storage + 4 * mem::size_of::<u32>()) as *mut u32,
 			value,
 		);
 		isolation_end!();
-        unshare!(IOAPIC_ADDRESS);
+		copy_to_safe(IOAPIC_ADDRESS as *mut u8, 4096);
+		clear_unsafe_storage();
 	}
 }
 
@@ -667,12 +668,14 @@ fn ioapic_read(reg: u32) -> u32 {
 	let value;
 
 	unsafe {
-        share!(IOAPIC_ADDRESS);
+		let unsafe_storage = get_unsafe_storage();
+		copy_from_safe(IOAPIC_ADDRESS as *const u8, 4096);
 		isolation_start!();
-		intrinsics::volatile_store(IOAPIC_ADDRESS as *mut u32, reg);
-		value = intrinsics::volatile_load((IOAPIC_ADDRESS + 4 * mem::size_of::<u32>()) as *const u32);
+		intrinsics::volatile_store(unsafe_storage as *mut u32, reg);
+		value = intrinsics::volatile_load((unsafe_storage + 4 * mem::size_of::<u32>()) as *const u32);
 		isolation_end!();
-        unshare!(IOAPIC_ADDRESS);
+		copy_to_safe(IOAPIC_ADDRESS as *mut u8, 4096);
+		clear_unsafe_storage()
 	}
 
 	value
@@ -698,13 +701,14 @@ fn local_apic_write(x2apic_msr: u32, value: u64) {
 			// There is a gap between them and the destination field in ICR2 is also 8 bits instead of 32 bits.
 			let destination = ((value >> 8) & 0xFF00_0000) as u32;
 			let icr2;
-                        unsafe {
-                            share!(LOCAL_APIC_ADDRESS + APIC_ICR2);
-                            isolation_start!();
-                            icr2 = &mut *((LOCAL_APIC_ADDRESS + APIC_ICR2) as *mut u32);
-                            isolation_end!();
-                            unshare!(LOCAL_APIC_ADDRESS + APIC_ICR2);
-                        };
+			let unsafe_storage = get_unsafe_storage();
+			unsafe {
+				copy_from_safe((LOCAL_APIC_ADDRESS + APIC_ICR2) as *const u32, 1);
+				isolation_start!();
+				icr2 = &mut *(unsafe_storage as *mut u32);
+				isolation_end!();
+				clear_unsafe_storage();
+			};
 			*icr2 = destination;
 
 			// The remaining data without the destination will now be written into ICR1.

@@ -33,7 +33,7 @@ use arch::x86_64::kernel::percore::*;
 use arch::x86_64::kernel::serial::SerialPort;
 use arch::x86_64::kernel::copy_safe::*;
 
-use core::{intrinsics, ptr, mem};
+use core::{intrinsics, ptr};
 use mm;
 use environment;
 use kernel_message_buffer;
@@ -82,18 +82,16 @@ static mut COM1: SerialPort = SerialPort::new(0x3f8);
 
 pub fn get_ip() -> [u8; 4] {
 	let mut ip: [u8; 4] = [0, 0, 0, 0];
-
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-	};
-	ip[0] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcip[0]) as u8 };
-	ip[1] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcip[1]) as u8 };
-	ip[2] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcip[2]) as u8 };
-	ip[3] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcip[3]) as u8 };
-	unsafe {
+		ip[0] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcip[0]) as u8;
+		ip[1] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcip[1]) as u8;
+		ip[2] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcip[2]) as u8;
+		ip[3] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcip[3]) as u8;
 		isolation_end!();
-	};
+	}
 	clear_unsafe_storage();
 
 	ip
@@ -101,16 +99,14 @@ pub fn get_ip() -> [u8; 4] {
 
 pub fn get_gateway() -> [u8; 4] {
 	let mut gw: [u8; 4] = [0, 0, 0, 0];
-
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-	};
-	gw[0] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcgateway[0]) as u8 };
-	gw[1] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcgateway[1]) as u8 };
-	gw[2] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcgateway[2]) as u8 };
-	gw[3] = unsafe { intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).hcgateway[3]) as u8 };
-	unsafe {
+		gw[0] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcgateway[0]) as u8;
+		gw[1] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcgateway[1]) as u8;
+		gw[2] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcgateway[2]) as u8;
+		gw[3] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).hcgateway[3]) as u8;
 		isolation_end!();
 	};
 	clear_unsafe_storage();
@@ -119,232 +115,236 @@ pub fn get_gateway() -> [u8; 4] {
 }
 
 pub fn get_base_address() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).base) as usize }
-	}
-	else {
-		let base;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).base) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			base = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).base) as usize;
+			let base = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).base) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return base;
+			return base;
+		}
 	}
 }
 
 pub fn get_image_size() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).image_size) as usize }
-	}
-	else {
-		let image_size;
-		unsafe {
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).image_size) as usize
+		}
+		else {
 			isolation_start!();
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
-			image_size = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).image_size) as usize;
+			copy_from_safe(BOOT_INFO, 1);
+			let image_size = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).image_size) as usize;
 			isolation_start!();
 			clear_unsafe_storage();
-		}
 
-		return image_size;
+			return image_size;
+		}
 	}
 }
 
 pub fn get_limit() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).limit) as usize }
-	}
-	else {
-		let limit;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).limit) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			limit = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).limit) as usize;
+			let limit = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).limit) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return limit;
+			return limit;
+		}
 	}
 }
 
+
 pub fn get_tls_start() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).tls_start) as usize }
-	}
-	else {
-		let tls_start;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).tls_start) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			tls_start = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).tls_start) as usize;
+			let tls_start = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).tls_start) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return tls_start;
+			return tls_start;
+		}
 	}
 }
 
 pub fn get_tls_filesz() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).tls_filesz) as usize }
-	}
-	else {
-		let tls_filesz;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).tls_filesz) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			tls_filesz = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).tls_filesz) as usize;
+			let tls_filesz = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).tls_filesz) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return tls_filesz;
+			return tls_filesz;
+		}
 	}
 }
 
 pub fn get_tls_memsz() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).tls_memsz) as usize }
-	}
-	else {
-		let tls_memsz;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).tls_memsz) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			tls_memsz = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).tls_memsz) as usize;
+			let tls_memsz = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).tls_memsz) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return tls_memsz;
+			return tls_memsz;
+		}
 	}
 }
 
 pub fn get_mbinfo() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).mb_info) as usize }
-	}
-	else {
-		let mb_info;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).mb_info) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			mb_info = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).mb_info) as usize;
+			let mb_info = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).mb_info) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return mb_info;
+			return mb_info;
+		}
 	}
 }
 
 pub fn get_processor_count() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).cpu_online) as usize }
-	}
-	else {
-		let cpu_online;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).cpu_online) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			cpu_online = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).cpu_online) as usize;
+			let cpu_online = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).cpu_online) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
-		}
 
-		return cpu_online;
+			return cpu_online;
+		}
 	}
 }
 
 /// Whether HermitCore is running under the "uhyve" hypervisor.
 pub fn is_uhyve() -> bool {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).uhyve) != 0 }
-	}
-	else {
-		let uhyve;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).uhyve) != 0
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			uhyve = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).uhyve);
+			let uhyve = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).uhyve);
 			isolation_end!();
 			clear_unsafe_storage();
+
+			return uhyve != 0;
 		}
-		return uhyve != 0;
 	}
 }
 
 /// Whether HermitCore is running alone (true) or side-by-side to Linux in Multi-Kernel mode (false).
 pub fn is_single_kernel() -> bool {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).single_kernel) != 0 }
-	}
-	else {
-		let single_kernel;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).single_kernel) != 0
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			single_kernel = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).single_kernel);
+			let single_kernel = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).single_kernel);
 			isolation_end!();
 			clear_unsafe_storage();
+
+			return single_kernel != 0;
 		}
-		return single_kernel != 0;
 	}
 }
 
 pub fn get_cmdsize() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).cmdsize) as usize }
-	}
-	else {
-		let cmdsize;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).cmdsize) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			cmdsize = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).cmdsize) as usize;
+			let cmdsize = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).cmdsize) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
+
+			return cmdsize;
 		}
-		return cmdsize;
 	}
 }
 
 pub fn get_cmdline() -> usize {
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe { intrinsics::volatile_load(&(*BOOT_INFO).cmdline) as usize }
-	}
-	else {
-		let cmdline;
-		unsafe { 
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
+			intrinsics::volatile_load(&(*BOOT_INFO).cmdline) as usize
+		}
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			cmdline = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).cmdline) as usize;
+			let cmdline = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).cmdline) as usize;
 			isolation_end!();
 			clear_unsafe_storage();
+
+			return cmdline;
 		}
-		return cmdline;
 	}
 }
 
 /// Earliest initialization function called by the Boot Processor.
 pub fn message_output_init() {
 	percore::init();
-	if unsafe{UNSAFE_STORAGE} == 0 {
-		unsafe {
+	let unsafe_storage = get_unsafe_storage();
+	unsafe {
+		if unsafe_storage == 0 {
 			COM1.port_address = intrinsics::volatile_load(&(*BOOT_INFO).uartport);
 		}
-	}
-	else {
-		unsafe {
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		else {
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			COM1.port_address = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).uartport);
+			COM1.port_address = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).uartport);
 			isolation_start!();
 			clear_unsafe_storage();
 		}
@@ -383,15 +383,7 @@ fn test_output() {
 pub fn output_message_byte(byte: u8) {
 	if environment::is_single_kernel() {
 		// Output messages to the serial port and VGA screen in unikernel mode.
-		unsafe {
-			//copy_from_safe(&COM1, mem::size_of::<SerialPort>());
-			//isolation_start!();
-			//(*(UNSAFE_STORAGE as *mut SerialPort)).write_byte(byte);
-			//isolation_end!();
-			//copy_to_safe(&mut COM1, mem::size_of::<SerialPort>());
-			//clear_unsafe_storage();
-			COM1.write_byte(byte); /* FIXME*/
-		}
+		unsafe { COM1.write_byte(byte); }
 
 		// vga::write_byte() checks if VGA support has been initialized,
 		// so we don't need any additional if clause around it.
@@ -420,15 +412,13 @@ pub fn boot_processor_init() {
 	::mm::init();
 	::mm::print_information();
 	environment::init();
-	copy_safe::init();
+	copy_safe::unsafe_storage_init();
 	gdt::init();
 	gdt::add_current_core();
 	idt::install();
-
 	if !environment::is_uhyve() {
 		pic::init();
 	}
-
 	irq::install();
 	irq::enable();
 	processor::detect_frequency();
@@ -459,6 +449,7 @@ pub fn boot_application_processors() {
 pub fn application_processor_init() {
 	percore::init();
 	processor::configure();
+	copy_safe::unsafe_storage_init();
 	gdt::add_current_core();
 	idt::install();
 	apic::init_x2apic();
@@ -484,12 +475,13 @@ fn finish_processor_init() {
 
 	// This triggers apic::boot_application_processors (bare-metal/QEMU) or uhyve
 	// to initialize the next processor.
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-		let _ = intrinsics::atomic_xadd(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).cpu_online as *mut u32, 1);
+		let _ = intrinsics::atomic_xadd(&mut (*(unsafe_storage as *mut BootInfo)).cpu_online as *mut u32, 1);
 		isolation_end!();
-		copy_to_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_to_safe(BOOT_INFO, 1);
 		clear_unsafe_storage();
 	}
 }

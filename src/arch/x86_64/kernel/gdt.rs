@@ -10,7 +10,6 @@ use alloc::boxed::Box;
 use arch::x86_64::kernel::percore::*;
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
-use arch::x86_64::mm::paging;
 use config::*;
 use core::{intrinsics, mem};
 use scheduler::task::TaskStatus;
@@ -103,10 +102,11 @@ pub fn add_current_core() {
 	// Every task later gets its own stack, so this boot stack is only used by the Idle task on each core.
 	// When switching to another task on this core, this entry is replaced.
 
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-		boxed_tss.rsp[0] = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
+		boxed_tss.rsp[0] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
 		isolation_end!();
 		clear_unsafe_storage();
 	}
@@ -118,40 +118,51 @@ pub fn add_current_core() {
 		boxed_tss.ist[i] = (ist + KERNEL_STACK_SIZE - 0x10) as u64;
 	}
 
-		// Add this TSS to the GDT.
-		let idx = GDT_FIRST_TSS as usize + (core_id() as usize) * 2;
-		let tss = Box::into_raw(boxed_tss);
-		{
-			let base = tss as u64;
-			let tss_descriptor: Descriptor64 =
-				<DescriptorBuilder as GateDescriptorBuilder<u64>>::tss_descriptor(
-					base,
-					base + mem::size_of::<TaskStateSegment>() as u64 - 1,
-					true,
-				)
-				.present()
-				.dpl(Ring::Ring0)
-				.finish();
-            unsafe {
-                //isolation_start!();
-			    (*GDT).entries[idx..idx + 2].copy_from_slice(&mem::transmute::<Descriptor64, [Descriptor; 2]>(tss_descriptor,));
-                //isolation_end!();
-            }
-		}
+	// Add this TSS to the GDT.
+	let idx = GDT_FIRST_TSS as usize + (core_id() as usize) * 2;
+	let tss = Box::into_raw(boxed_tss);
+	{
+		let base = tss as u64;
+		let tss_descriptor: Descriptor64 =
+			<DescriptorBuilder as GateDescriptorBuilder<u64>>::tss_descriptor(
+				base,
+				base + mem::size_of::<TaskStateSegment>() as u64 - 1,
+				true,
+			)
+			.present()
+			.dpl(Ring::Ring0)
+			.finish();
 
-		// Load it.
-		let sel = SegmentSelector::new(idx as u16, Ring::Ring0);
+		list_add(&tss_descriptor as *const _ as usize);
+		let unsafe_storage = get_unsafe_storage();
+		copy_from_safe(&tss_descriptor, 1);
+
+		let gdt_ref;
+		unsafe {
+			isolation_start!();
+			gdt_ref = &mut (*GDT);
+			isolation_end!();
+		}
+		let entry = &mut (*gdt_ref).entries[idx..idx + 2];
+
+		unsafe {
+			let tss_desc = &mem::transmute::<Descriptor64, [Descriptor; 2]>(*(unsafe_storage as *const Descriptor64),);
+			(*entry).copy_from_slice(tss_desc);
+			clear_unsafe_storage();
+		}
+	}
+
+	// Load it.
+	let sel = SegmentSelector::new(idx as u16, Ring::Ring0);
 	unsafe {
         load_tr(sel);
-	    // Store it in the PerCoreVariables structure for further manipulation.
-		//isolation_start!();
-	    PERCORE.tss.set(tss);
-        //isolation_end!();
+		// Store it in the PerCoreVariables structure for further manipulation.
+		PERCORE.tss.safe_set(tss);
 	}
 }
 
 pub fn get_boot_stacks() -> usize {
-	let tss = unsafe /*FIXME*/ { &(*PERCORE.tss.get()) };
+	let tss = unsafe { &(*PERCORE.tss.safe_get()) };
 
 	tss.rsp[0] as usize
 }
@@ -165,7 +176,7 @@ pub extern "C" fn set_current_kernel_stack() {
 		DEFAULT_STACK_SIZE
 	};
 
-	let tss = unsafe /*FIXME*/ { &mut (*PERCORE.tss.get()) };
+	let tss = unsafe { &mut (*PERCORE.tss.safe_get()) };
 
 	tss.rsp[0] = (current_task_borrowed.stacks.stack + stack_size - 0x10) as u64;
 }

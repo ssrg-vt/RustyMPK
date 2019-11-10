@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use arch::x86_64::mm::paging;
-use arch::x86_64::mm::paging::{PageSize, BasePageSize};
+use arch::x86_64::mm::paging::PageSize;
 use arch::x86_64::kernel::processor;
 
 const EINVAL: i32 = 22;

@@ -10,7 +10,6 @@ use arch::x86_64::kernel::processor;
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
 use core::intrinsics;
-use core::mem;
 use core::sync::atomic::spin_loop_hint;
 use environment;
 use mm;
@@ -230,10 +229,11 @@ fn date_from_microseconds(microseconds_since_epoch: u64) -> (u16, u8, u8, u8, u8
 
 pub fn get_boot_time() -> u64 {
 	let boot_gtod;
+	let unsafe_storage = get_unsafe_storage();
 	unsafe {
-		copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-		boot_gtod = intrinsics::volatile_load(&(*(UNSAFE_STORAGE as *const BootInfo)).boot_gtod);
+		boot_gtod = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).boot_gtod);
 		isolation_end!();
 		clear_unsafe_storage();
 
@@ -250,12 +250,13 @@ pub fn init() {
 		let rtc = Rtc::new();
 		microseconds_offset = rtc.get_microseconds_since_epoch() - processor::get_timer_ticks();
 
+		let unsafe_storage = get_unsafe_storage();
 		unsafe {
-			copy_from_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
-			intrinsics::volatile_store(&mut (*(UNSAFE_STORAGE as *mut BootInfo)).boot_gtod, microseconds_offset);
+			intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).boot_gtod, microseconds_offset);
 			isolation_end!();
-			copy_to_safe(BOOT_INFO, mem::size_of::<BootInfo>());
+			copy_to_safe(BOOT_INFO, 1);
 			clear_unsafe_storage();
 		}
 	}
