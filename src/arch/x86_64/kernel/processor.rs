@@ -997,6 +997,7 @@ pub fn get_timer_ticks() -> u64 {
 }
 
 pub fn get_frequency() -> u16 {
+/* FIXME, for performance?
 	let unsafe_storage = get_unsafe_storage();
 	unsafe {
 		copy_from_safe(&CPU_FREQUENCY, 1);
@@ -1005,7 +1006,9 @@ pub fn get_frequency() -> u16 {
 		isolation_end!();
 		clear_unsafe_storage();
 		return frequency;
-    }
+	}
+*/
+	unsafe { CPU_FREQUENCY.get()}
 }
 
 #[inline]

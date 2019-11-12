@@ -300,7 +300,7 @@ fn deallocate(mut hole: &mut Hole, addr: usize, mut size: usize) {
 				);
 				// write the new hole to the freed memory
 				let ptr = addr as *mut Hole;
-				unsafe { ptr.write(new_hole) };
+				unsafe /* FIXME? */ { ptr.write(new_hole) };
 				// add the F block as the next block of the X block
 				hole.next = Some(unsafe { &mut *ptr });
 			}

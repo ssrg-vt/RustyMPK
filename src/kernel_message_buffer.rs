@@ -8,8 +8,9 @@
 //! Kernel Message Buffer for Multi-Kernel mode.
 //! Can be read from the Linux side as no serial port is available.
 
-use core::intrinsics;
+use core::intrinsics::volatile_store;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use mm;
 
 const KMSG_SIZE: usize = 0x1000;
 
@@ -19,15 +20,18 @@ struct KmsgSection {
 	buffer: [u8; KMSG_SIZE + 1],
 }
 
+isolate_global_var!(
 static mut KMSG: KmsgSection = KmsgSection {
 	buffer: [0; KMSG_SIZE + 1],
-};
+});
 
 static BUFFER_INDEX: AtomicUsize = AtomicUsize::new(0);
 
 pub fn write_byte(byte: u8) {
 	let index = BUFFER_INDEX.fetch_add(1, Ordering::SeqCst);
 	unsafe {
-		intrinsics::volatile_store(&mut KMSG.buffer[index % KMSG_SIZE], byte);
+		isolation_start!();
+		volatile_store(&mut KMSG.buffer[index % KMSG_SIZE], byte);
+		isolation_end!();
 	}
 }

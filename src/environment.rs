@@ -20,12 +20,14 @@ pub use arch::aarch64::kernel::{
 	get_base_address, get_cmdline, get_cmdsize, get_image_size, is_single_kernel, is_uhyve,
 };
 
-use core::{slice, str};
+use core::slice::from_raw_parts;
+use core::str::from_utf8_unchecked;
+use mm;
 
 static mut COMMAND_LINE_CPU_FREQUENCY: u16 = 0;
 static mut IS_PROXY: bool = false;
 
-unsafe fn parse_command_line() {
+fn parse_command_line() {
 	let cmdsize = get_cmdsize();
 	if cmdsize == 0 {
 		return;
@@ -33,8 +35,12 @@ unsafe fn parse_command_line() {
 
 	// Convert the command-line into a Rust string slice.
 	let cmdline = get_cmdline() as *const u8;
-	let slice = slice::from_raw_parts(cmdline, cmdsize);
-	let cmdline_str = str::from_utf8_unchecked(slice);
+	let slice;
+	let cmdline_str;
+	unsafe {
+		slice = isolate_function_strong!(from_raw_parts(cmdline, cmdsize));
+		cmdline_str = isolate_function_strong!(from_utf8_unchecked(slice));
+	}
 
 	// Check for the -freq option.
 	if let Some(freq_index) = cmdline_str.find("-freq") {
@@ -43,26 +49,26 @@ unsafe fn parse_command_line() {
 			.split(' ')
 			.next()
 			.expect("Invalid -freq command line");
-		COMMAND_LINE_CPU_FREQUENCY = mhz_str
+		unsafe {
+			COMMAND_LINE_CPU_FREQUENCY = mhz_str
 			.parse()
 			.expect("Could not parse -freq command line as number");
+		}
 	}
 
 	// Check for the -proxy option.
-	IS_PROXY = cmdline_str.find("-proxy").is_some();
+	unsafe { IS_PROXY = cmdline_str.find("-proxy").is_some(); }
 }
 
 pub fn init() {
-	unsafe {
-		parse_command_line();
+	parse_command_line();
 
-		if is_uhyve() || is_single_kernel() {
-			// We are running under uhyve or baremetal, which implies unikernel mode and no communication with "proxy".
-			IS_PROXY = false;
-		} else {
-			// We are running side-by-side to Linux, which implies communication with "proxy".
-			IS_PROXY = true;
-		}
+	if is_uhyve() || is_single_kernel() {
+		// We are running under uhyve or baremetal, which implies unikernel mode and no communication with "proxy".
+		unsafe { IS_PROXY = false; }
+	} else {
+		// We are running side-by-side to Linux, which implies communication with "proxy".
+		unsafe { IS_PROXY = true; }
 	}
 }
 

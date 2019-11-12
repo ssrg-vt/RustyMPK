@@ -19,7 +19,6 @@ use arch::x86_64::kernel::copy_safe::*;
 use config::*;
 use core::cell::RefCell;
 use core::{mem, ptr};
-use core::ptr::{copy_nonoverlapping, write_bytes};
 use environment;
 use mm;
 use scheduler::task::{Task, TaskFrame, TaskTLS};
@@ -99,7 +98,6 @@ impl TaskStacks {
 		Self {
 			is_boot_stack: true,
 			stack: stack,
-			//FIXME
 			isolated_stack: 0x0usize,
 		}
 	}
@@ -156,29 +154,22 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 			// See "ELF Handling For Thread-Local Storage", version 0.20 by Ulrich Drepper, page 12 for details.
 			//
 			// fs:0 is where tls_pointer points to and we have reserved space for a usize value above.
-			*(tls_pointer as *mut usize) = tls_pointer;
 
-			/* Copy TLS variables with their initial values on the UNSAFE_STORAGE.
+			let unsafe_tls_pointer = (tls.get_unsafe_storage() + align_up!(tls_size, 32)) as *mut usize;
+			tls.copy_from_safe();
+			isolation_start!();
+			*(unsafe_tls_pointer) = unsafe_tls_pointer as usize;
+			isolation_end!();
+			tls.copy_to_safe();
+
+			/* Copy TLS variables with their initial values on the tls's unsafe_storage.
         	   Then copy back the TLS variables with their initial values on tls.address()
 			*/
-			/*
 			list_add(environment::get_tls_start());
 			list_add(tls.address());
 			copy_from_safe(environment::get_tls_start() as *const u8, tdata_size);
 			copy_to_safe(tls.address() as *mut u8, tls_size);
 			clear_unsafe_storage();
-			*/
-			ptr::copy_nonoverlapping(
-				environment::get_tls_start() as *const u8,
-				tls.address() as *mut u8,
-				tdata_size,
-			);
-
-			ptr::write_bytes(
-				(tls.address() as *const u8 as usize + tdata_size) as *mut u8,
-				0,
-				tls_size - tdata_size,
-			);
 		}
 
 		// Associate the TLS memory to the current task.
@@ -197,7 +188,11 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 
 impl TaskFrame for Task {
 	fn create_stack_frame(&mut self, func: extern "C" fn(usize), arg: usize) {
-		unsafe {
+		/* This function initializes an empty stack frame.
+		   So we can just set pages to SHARE_MEM_REGION then set it back to SAFE_MEM_RGION after the initializtion.
+		*/
+		//set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SHARED_MEM_REGION);
+		unsafe { /* FIXME */
 			// Mark the entire stack with 0xCD.
 			ptr::write_bytes(self.stacks.stack as *mut u8, 0xCD, DEFAULT_STACK_SIZE);
 
@@ -224,6 +219,7 @@ impl TaskFrame for Task {
 			// Set the task's stack pointer entry to the stack we have just crafted.
 			self.last_stack_pointer = stack as usize;
 		}
+		//set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SAFE_MEM_REGION);
 	}
 }
 

@@ -7,8 +7,10 @@
 
 use arch;
 use arch::mm::paging;
-use core::{mem, ptr, slice};
+use core::{mem, ptr};
+use core::slice::from_raw_parts_mut;
 use syscalls::interfaces::SyscallInterface;
+use mm;
 #[cfg(feature = "newlib")]
 use syscalls::lwip::sys_lwip_get_errno;
 #[cfg(feature = "newlib")]
@@ -229,8 +231,8 @@ impl SyscallInterface for Uhyve {
 			syscmdsize.argc as usize * mem::size_of::<*const u8>(),
 			mem::size_of::<*const u8>(),
 		) as *mut *const u8;
-		let argv = unsafe { slice::from_raw_parts_mut(argv_raw, syscmdsize.argc as usize) };
-		let argv_phy = unsafe { slice::from_raw_parts_mut(argv_phy_raw, syscmdsize.argc as usize) };
+		let argv = unsafe { isolate_function_weak!(from_raw_parts_mut(argv_raw, syscmdsize.argc as usize)) };
+		let argv_phy = unsafe { isolate_function_weak!(from_raw_parts_mut(argv_phy_raw, syscmdsize.argc as usize)) };
 		for i in 0..syscmdsize.argc as usize {
 			argv[i] = ::sys_malloc(
 				syscmdsize.argsz[i] as usize * mem::size_of::<*const u8>(),
@@ -248,9 +250,9 @@ impl SyscallInterface for Uhyve {
 			(syscmdsize.envc + 1) as usize * mem::size_of::<*const u8>(),
 			mem::size_of::<*const u8>(),
 		) as *mut *const u8;
-		let env = unsafe { slice::from_raw_parts_mut(env_raw, (syscmdsize.envc + 1) as usize) };
+		let env = unsafe { isolate_function_weak!(from_raw_parts_mut(env_raw, (syscmdsize.envc + 1) as usize)) };
 		let env_phy =
-			unsafe { slice::from_raw_parts_mut(env_phy_raw, (syscmdsize.envc + 1) as usize) };
+			unsafe { isolate_function_weak!(from_raw_parts_mut(env_phy_raw, (syscmdsize.envc + 1) as usize)) };
 		for i in 0..syscmdsize.envc as usize {
 			env[i] = ::sys_malloc(
 				syscmdsize.envsz[i] as usize * mem::size_of::<*const u8>(),
@@ -303,7 +305,7 @@ impl SyscallInterface for Uhyve {
 				let ret;
 
 				unsafe {
-					ret = lwip_read(fd & !LWIP_FD_BIT, buf as *mut u8, len);
+					ret = isolate_function_weak!(lwip_read(fd & !LWIP_FD_BIT, buf as *mut u8, len));
 				}
 				if ret < 0 {
 					return -sys_lwip_get_errno() as isize;
@@ -329,7 +331,7 @@ impl SyscallInterface for Uhyve {
 				let ret;
 
 				unsafe {
-					ret = lwip_write(fd & !LWIP_FD_BIT, buf as *const u8, len);
+					ret = isolate_function_weak!(lwip_write(fd & !LWIP_FD_BIT, buf as *const u8, len));
 				}
 				if ret < 0 {
 					return -sys_lwip_get_errno() as isize;

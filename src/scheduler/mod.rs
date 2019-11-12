@@ -373,7 +373,7 @@ pub fn add_current_core() {
 
 	let scheduler = Box::into_raw(boxed_scheduler);
 	set_core_scheduler(scheduler);
-	unsafe {
+	unsafe { /* FIXME */
 		SCHEDULERS.as_mut().unwrap().insert(core_id, &(*scheduler));
 	}
 }

@@ -4,7 +4,7 @@ use x86::msr::*;
 use mm;
 
 static mut LIST: [usize;100] = [0;100];
-static SIZE: usize = 0x10000;
+static SIZE: usize = 0x1000;
 
 pub fn unsafe_storage_init() {
     let unsafe_storage = mm::unsafe_allocate(SIZE, true);

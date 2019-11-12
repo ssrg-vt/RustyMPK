@@ -168,7 +168,6 @@ pub fn get_limit() -> usize {
 	}
 }
 
-
 pub fn get_tls_start() -> usize {
 	let unsafe_storage = get_unsafe_storage();
 	unsafe {

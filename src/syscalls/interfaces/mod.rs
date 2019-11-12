@@ -15,8 +15,10 @@ use alloc::boxed::Box;
 use arch;
 use console;
 use core::fmt::Write;
-use core::{isize, ptr, slice, str};
+use core::{isize, ptr, str};
+use core::slice::from_raw_parts;
 use errno::*;
+use mm;
 
 pub trait SyscallInterface: Send + Sync {
 	fn init(&self) {
@@ -70,7 +72,7 @@ pub trait SyscallInterface: Send + Sync {
 		assert!(len <= isize::MAX as usize);
 
 		unsafe {
-			let slice = slice::from_raw_parts(buf, len);
+			let slice = isolate_function_weak!(from_raw_parts(buf, len));
 			console::CONSOLE
 				.lock()
 				.write_str(str::from_utf8_unchecked(slice))
