@@ -1,3 +1,5 @@
+#![feature(asm)]
+
 extern crate http;
 extern crate rayon;
 
@@ -13,6 +15,23 @@ fn test_result<T>(result: Result<(), T>) -> &'static str {
 }
 
 fn main() {
+	unsafe {
+		let val: u32;
+		unsafe {
+			asm!("xor %ecx, %ecx;
+				  rdpkru;
+				  movl %eax, $0"
+				 : "=r"(val)
+				 :
+				 : "eax", "edx", "ecx"
+				 : "volatile");
+		}
+		println!("PKRU val in main(): {:#X}", val);
+	}
+	/*
+	let addr = 0x3CFB000 as *mut usize;
+	unsafe {*addr = 0xDEAD_DEAD;}
+	*/
 	println!("Test {} ... {}", stringify!(hello), test_result(hello()));
 /*
         println!(
@@ -73,11 +92,13 @@ fn main() {
 		stringify!(test_matmul_strassen),
 		test_result(test_matmul_strassen())
 	);
+	/*
 	println!(
 		"Test {} ... {}",
 		stringify!(thread_creation),
 		test_result(thread_creation())
 	);
+	*/
 	println!(
 		"Test {} ... {}",
 		stringify!(bench_sched_one_thread),

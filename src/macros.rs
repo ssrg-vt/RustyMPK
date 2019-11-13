@@ -56,7 +56,7 @@ macro_rules! isolate_global_var {
         pub static mut $name: $var_type = 0;
     };
 }
-
+/*
 macro_rules! isolate_raw_pointer {
     /* write on a raw pointer */
     (*$name:ident = $val:expr) => {{
@@ -110,14 +110,16 @@ macro_rules! isolate_raw_pointer {
         temp_val
     }};
 }
+*/
 
 macro_rules! isolation_start {
 	() => {
-			asm!("mov $0, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		asm!("xor %ecx, %ecx;
+		    rdpkru;
+			or $0, %eax;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			:
 			: "r"(mm::PKRU_PERMISSION)
 			: "eax", "ecx", "edx"
@@ -127,25 +129,27 @@ macro_rules! isolation_start {
 
 macro_rules! isolation_end {
 	() => {
-		    asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence"
+		asm!("xor %ecx, %ecx;
+			rdpkru;
+			xor $0, %eax;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			:
-			:
+			: "r"(mm::PKRU_PERMISSION)
 			: "eax", "ecx", "edx"
-			: "volatile");
+			: "volatile"); 
 	};
 }
 
 macro_rules! isolation_wrapper {
 	($f:ident($($x:tt)*)) => {{
-		asm!("mov $0, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		asm!("xor %ecx, %ecx;
+			rdpkru;
+			or $0, %eax;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			:
 			: "r"(mm::PKRU_PERMISSION)
 			: "eax", "ecx", "edx"
@@ -153,15 +157,17 @@ macro_rules! isolation_wrapper {
 
 		let temp_ret = $f($($x)*);
 
-		asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence"
+		asm!("xor %ecx, %ecx;
+			rdpkru;
+			xor $0, %eax;
+			xor %edx, %edx;
+			wrpkru;
+			lfence"
 			:
-			:
+			: "r"(mm::PKRU_PERMISSION)
 			: "eax", "ecx", "edx"
-			: "volatile");
+			: "volatile"); 
+
 		temp_ret
 	}};
 }
@@ -233,13 +239,6 @@ macro_rules! share_local_var {
 		let mut $name: $var_type = $expr;
 		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SHARED_MEM_REGION);
 	};
-/*
-	(let $name:ident: $var_type:ty = $($p:ident::)*$f:ident($($x:tt)*)) => {
-		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
-		let $name: $var_type:ty = $($p::)*$f($($x)*);
-		set_pkey_on_page_table_entry::<BasePageSize>(&$name as *const $var_type as usize, 1, mm::SHARED_MEM_REGION);
-	};
-*/
 }
 
 macro_rules! unshare_local_var {
@@ -256,7 +255,6 @@ macro_rules! unshare_local_var {
 	};
 }
 
-#[cfg(feature = "shm")]
 macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
 		//info!("shm enabled");
@@ -283,10 +281,11 @@ macro_rules! isolate_function_weak {
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SHARED_MEM_REGION);
 
-		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
+		/* or $1, %eax -> Add mm::PKRU_PERMISSION to current value of PKRU */
 		asm!("mov $0, %rsp;
-			  mov $1, %eax;
 			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $1, %eax;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence"
@@ -297,16 +296,18 @@ macro_rules! isolate_function_weak {
 
 		let temp_ret = $f($($x)*);
 
-		asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
+		asm!("xor %ecx, %ecx;
+			  rdpkru;
+			  xor $0, %eax;		
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
-			  mov $0, %rsp"
+			  mov $1, %rsp"
 			:
-			: "r"(__current_rsp)
+			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
+
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
@@ -322,7 +323,6 @@ macro_rules! isolate_function_weak {
 		let mut __current_rsp: usize = 0;
 		let mut __count:usize = 0;
 
-		/* We get the address of current stack frame and calculate size of the stack frame. */
 		asm!("mov %rbp, $0;
 			  mov %rsp, $1"
 			: "=r"(__current_rbp), "=r"(__current_rsp)
@@ -330,15 +330,13 @@ macro_rules! isolate_function_weak {
 			: "rbp", "rsp"
 			: "volatile");
 
-		/* Calculate the number of pages of the current stack frame */
 		__count = (align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096))/4096;
-		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SHARED_MEM_REGION);
 
-		/* "mov $$0xC, $eax" is to set SAFE_MEM_REGION (pkey of 1) permission to NONE */
 		asm!("mov $0, %rsp;
-			  mov $1, %eax;
 			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $1, %eax;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence"
@@ -349,122 +347,22 @@ macro_rules! isolate_function_weak {
 
 		let temp_ret = $p.$f($($x)*);
 
-		asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
+		asm!("xor %ecx, %ecx;
+			  rdpkru;
+			  xor $0, %eax;		
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
-			  mov $0, %rsp"
+			  mov $1, %rsp"
 			:
-			: "r"(__current_rsp)
+			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
+
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
 		temp_ret
 	}};
 }
-
-/* Don't use COPYING for now.
-#[cfg(not(feature = "shm"))]
-macro_rules! isolate_function_weak {
-	($f:ident($($x:tt)*)) => {{
-		info!("copying enabled");
-		use x86_64::kernel::percore::core_scheduler;
-		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
-		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
-		use core::intrinsics::copy_nonoverlapping;
-
-		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
-		let mut __current_rbp: usize = 0;
-		let mut __current_rsp: usize = 0;
-		let mut __size:usize = 0;
-
-		/* We get the address of current stack frame and calculate size of the stack frame. */
-		asm!("mov %rbp, $0;
-			  mov %rsp, $1"
-			: "=r"(__current_rbp), "=r"(__current_rsp)
-			:
-			: "rbp", "rsp"
-			: "volatile");
-
-		/* Calculate the number of pages of the current stack frame */
-		__size = align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096);
-		/* Set pkey of SHARED_MEM_REGION on the current stack frame */
-		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __size/4096, SHARED_MEM_REGION);
-
-		/* Permission to the safe region becomes NONE
-		 * i.e., isolation starts
-		 */
-		asm!("mov $0, %rsp;
-			  mov $$0xC, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			  :
-			  : "r"(__isolated_stack - __size)
-			  : "rsp", "eax", "ecx", "edx"
-			  : "volatile");
-
-		/* Copy the original stack frame to the isolated stack */
-		copy_nonoverlapping(align_down!(__current_rsp, 4096) as *const u8, (__isolated_stack - __size) as *mut u8, __size);
-
-		/* Change rsp and rbp to point to the isolated stack */
-		asm!("mov $0, %rsp;
-			  mov $1, %rbp"
-			: 
-			: "r"(__isolated_stack - (align_up!(__current_rbp, 4096) - __current_rsp)),
-			  "r"(__isolated_stack - (align_up!(__current_rbp, 4096) - __current_rbp))
-			: "rsp", "rbp"
-			: "volatile");
-
-		/* Set the original stack frame no access */
-		asm!("mov $$0xCC, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			:
-			:
-			: "eax", "ecx", "edx"
-			: "volatile");
-
-		let temp_ret = $f($($x)*);
-
-		/* Set the original stack frame writable */
-		asm!("mov $$0xC, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			:
-			:
-			: "eax", "ecx", "edx"
-			: "volatile");
-
-		/* Copy the change back to the original stack frame */
-		copy_nonoverlapping((__isolated_stack - __size) as *const u8, align_down!(__current_rsp, 4096) as *mut u8, __size);
-
-		/* Permission to the safe region becomes RW 
-		 * i.e., isolation ends
-		 */
-		asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $0, %rsp;
-			  mov $1, %rbp"
-			:
-			: "r"(__current_rsp), "r"(__current_rbp)
-			: "rsp", "rbp", "eax", "ecx", "edx"
-			: "volatile");
-
-		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __size/4096, SAFE_MEM_REGION);
-		temp_ret
-	}};
-}
-*/
 
 macro_rules! isolate_function_strong {
 	($f:ident($($x:tt)*)) => {{
@@ -474,12 +372,13 @@ macro_rules! isolate_function_strong {
 		let mut __current_rsp: usize = 0;
 
 		asm!("mov %rsp, $0;
-			mov $1, %rsp;
-			mov $2, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+			  mov $1, %rsp;
+			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $2, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
 			: "=r"(__current_rsp)
 			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
 			: "rsp", "eax", "ecx", "edx"
@@ -487,16 +386,18 @@ macro_rules! isolate_function_strong {
 
 		let temp_ret = $f($($x)*);
 
-		asm!("xor %eax, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence;
-			mov $0, %rsp"
+		asm!("xor %ecx, %ecx;
+			  rdpkru;
+			  xor $0, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence;
+			  mov $1, %rsp"
 			:
-			: "r"(__current_rsp)
+			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
+
 		temp_ret
 	}};
 		
@@ -507,12 +408,13 @@ macro_rules! isolate_function_strong {
 		let mut __current_rsp: usize = 0;
 
 		asm!("mov %rsp, $0;
-			mov $1, %rsp;
-			mov $2, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+			  mov $1, %rsp;
+			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $2, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
 			: "=r"(__current_rsp)
 			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
 			: "rsp", "eax", "ecx", "edx"
@@ -520,73 +422,44 @@ macro_rules! isolate_function_strong {
 
 		let temp_ret = $p.$f($($x)*);
 
-		asm!("xor %eax, %eax;
-			xor %ecx, %ecx;
-			xor %edx, %edx;
-			wrpkru;
-			lfence;
-			mov $0, %rsp"
+		asm!("xor %ecx, %ecx;
+			  rdpkru;
+			  xor $0, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence;
+			  mov $1, %rsp"
 			:
-			: "r"(__current_rsp)
+			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
+
 		temp_ret
 	}};
 }
 
-/*
-macro_rules! gs_relative {
-	(&$name:ident as *const $var_type:ty) => {{
-		let offset: usize = &$name as *const $var_type as usize - processor::readgs();
-		offset
-	}};
+macro_rules! isolate_runtime {
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+        use config::DEFAULT_STACK_SIZE;
+		let __user_stack = core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE;
+		let mut __current_rsp: usize = 0;
 
-	(&mut $name:ident as *mut $var_type:ty) => {{
-		let offset: usize = &mut $name as *mut $var_type as usize - processor::readgs();
-		offset
-	}};
-}
+		asm!("mov %rsp, $0;
+			  mov $1, %rsp;
+			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $2, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
+			: "=r"(__current_rsp)
+			: "r"(__user_stack),"r"(mm::USER_PERMISSION)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
 
-macro_rules! isolation_test {
-	($f:ident($($x:tt)*)) => {
-		parse_parameters!($($x)*);
+		info!("aa: {:#X}", mm::USER_PERMISSION);
 		$f($($x)*);
-		info!("test:{}", test1);
-		//isolate_function_weak!($f($($x)*));
-	};
+
+	}};
 }
-
-macro_rules! parse_parameters {
-	() => {};
-
-	/* Find a pointer among the parameters */
-	($x:tt: *const $var_type:ty, $($tail:tt)*) => {{
-		*($x) += 1;
-		parse_parameters!($($tail)*);
-	}};
-
-	($x:tt: *mut $var_type:ty, $($tail:tt)*) => {{
-		*($x) += 1;
-		parse_parameters!($($tail)*);
-	}};
-
-	/* Walk-through parameters */
-	($x:tt, $($tail:tt)*) => {{
-		parse_parameters!($($tail)*);
-	}};
-
-	/* Find that the last parameter is a pointer */
-	($x:tt: *const $var_type:ty) => {{
-		*($x) += 1;
-	}};
-
-	($x:tt: *mut $var_type:ty) => {{
-		*($x) += 1;
-		static mut test1:usize = 1;
-	}};
-
-	/* the last parameter */
-	($x:tt) => {};
-	($x:tt: $var_type:ty) => {};
-}
-*/

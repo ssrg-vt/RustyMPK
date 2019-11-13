@@ -37,10 +37,11 @@ static mut HEAP_END_ADDRESS: usize = 0;
 pub const SAFE_MEM_REGION: u8 = 1;
 pub const UNSAFE_MEM_REGION: u8 = 2;
 pub const SHARED_MEM_REGION: u8 = 3;
-pub const BOOT_MEM_REGION: u8 = 15;
+pub const USER_MEM_REGION: u8 = 10;
 
-pub const PKRU_PERMISSION: u32 = 0xC000000C;
-//pub const PKRU_PERMISSION: u32 = 0xC;
+//pub const PKRU_PERMISSION: u32 = 0xC000000C;
+pub const PKRU_PERMISSION: u32 = 0xC;
+pub const USER_PERMISSION: u32 = 0xFC;
 
 /*
 #[cfg(not(test))]
@@ -119,7 +120,7 @@ pub fn init() {
 	arch::mm::init();
 	arch::mm::init_page_tables();    
 	/* Protect the first page containing BIOS, boot loader data */
-	arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, BOOT_MEM_REGION);
+	arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, SAFE_MEM_REGION);
 
 	info!("Total memory size: {} MB", total_memory_size() >> 20);
 
@@ -320,6 +321,24 @@ pub fn shared_allocate(sz: usize, execute_disable: bool) -> usize {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
+
+	virtual_address
+}
+
+pub fn user_allocate(sz: usize, execute_disable: bool) -> usize {
+	let size = align_up!(sz, BasePageSize::SIZE);
+
+	let physical_address = arch::mm::physicalmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+	let virtual_address = arch::mm::virtualmem::allocate_aligned(size, BasePageSize::SIZE).unwrap();
+
+	let count = size / BasePageSize::SIZE;
+	let mut flags = PageTableEntryFlags::empty();
+	flags.normal().writable().pkey(USER_MEM_REGION);
+	if execute_disable {
+		flags.execute_disable();
+	}
+	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
+	//arch::mm::paging::print_page_table_entry::<BasePageSize>(virtual_address);
 
 	virtual_address
 }

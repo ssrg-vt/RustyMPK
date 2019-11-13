@@ -73,6 +73,8 @@ pub struct TaskStacks {
 	pub stack: usize,
 	/// Isolated stack of the task
 	pub isolated_stack: usize,
+	// User stack
+	pub user_stack: usize,
 }
 
 impl TaskStacks {
@@ -84,10 +86,13 @@ impl TaskStacks {
 		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, false);
 		//info!("Allocating isolated_stack {:#X}, size: {}", isolated_stack, DEFAULT_STACK_SIZE);
 
+		let user_stack = ::mm::user_allocate(DEFAULT_STACK_SIZE, false);
+
 		Self {
 			is_boot_stack: false,
 			stack: stack,
 			isolated_stack: isolated_stack,
+			user_stack: user_stack,
 		}
 	}
 
@@ -99,6 +104,7 @@ impl TaskStacks {
 			is_boot_stack: true,
 			stack: stack,
 			isolated_stack: 0x0usize,
+			user_stack: 0x0usize,
 		}
 	}
 }
@@ -113,6 +119,8 @@ impl Drop for TaskStacks {
 			debug!("Deallocating isolated_stack {:#X}", self.stack);
 
 			::mm::deallocate(self.isolated_stack, DEFAULT_STACK_SIZE);
+
+			::mm::deallocate(self.user_stack, DEFAULT_STACK_SIZE);
 		}
 	}
 }
