@@ -43,12 +43,15 @@ const AML_BYTEPREFIX: u8 = 0x0A;
 /// Bit to enable an ACPI Sleep State.
 const SLP_EN: u16 = 1 << 13;
 
+#[allow(unused)]
 /// The "Multiple APIC Description Table" (MADT) preserved for get_apic_table().
-static mut MADT: Option<AcpiTable<'_>> = None;
+safe_global_var!(static mut MADT: Option<AcpiTable<'_>> = None);
+#[allow(unused)]
 /// The PM1A Control I/O Port for powering off the computer through ACPI.
-static mut PM1A_CNT_BLK: Option<u16> = None;
+safe_global_var!(static mut PM1A_CNT_BLK: Option<u16> = None);
+#[allow(unused)]
 /// The Sleeping State Type code for powering off the computer through ACPI.
-static mut SLP_TYPA: Option<u8> = None;
+safe_global_var!(static mut SLP_TYPA: Option<u8> = None);
 
 /// The "Root System Description Pointer" structure providing pointers to all other ACPI tables.
 #[repr(C, packed)]

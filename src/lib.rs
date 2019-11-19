@@ -84,15 +84,6 @@ use arch::percore::*;
 use core::alloc::GlobalAlloc;
 use mm::allocator::LockedHeap;
 
-/*
-use x86_64::mm::mpk;
-use x86_64::mm::virtualmem;
-use x86_64::mm::physicalmem;
-use x86_64::mm::paging;
-use x86_64::mm::paging::{BasePageSize, LargePageSize, PageTableEntryFlags};
-use core::ptr;
-*/
-
 #[cfg(not(test))]
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -101,6 +92,7 @@ static ALLOCATOR: LockedHeap = LockedHeap::empty();
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
+	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 	let ptr;
 
@@ -114,7 +106,7 @@ pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
 		size,
 		align
 	);
-
+	//kernel_exit!();
 	ptr
 }
 
@@ -122,6 +114,7 @@ pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size: usize) -> *mut u8 {
+	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 	let new_ptr;
 
@@ -134,7 +127,7 @@ pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size:
 		ptr as usize,
 		new_ptr as usize
 	);
-
+	//kernel_exit!();
 	new_ptr
 }
 
@@ -142,6 +135,7 @@ pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size:
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
+	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 
 	trace!(
@@ -153,14 +147,8 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 	unsafe {
 		ALLOCATOR.dealloc(ptr, layout);
 	}
+	//kernel_exit!();
 }
-
-
-#[cfg(not(test))]
-extern "C" {
-	static mut __bss_start: usize;
-}
-
 
 /// Helper function to check if uhyve provide an IP device
 fn has_ipdevice() -> bool {
@@ -215,10 +203,23 @@ extern "C" fn initd(_arg: usize) {
 
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
+
 	unsafe {
 		// And finally start the application.
-		isolate_runtime!(runtime_entry(argc, argv, environ));
-		//runtime_entry(argc, argv, environ);
+		let current_user_stack = core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE;
+		info!("user_stack:{:#X} ~ {:#X}", current_user_stack - DEFAULT_STACK_SIZE, current_user_stack);
+		let current_kernel_stack;
+
+		// Store the kernel stack pointer and switch to the user stack
+		asm!("mov %rsp, $0;
+			  mov $1, %rsp"
+		: "=r"(current_kernel_stack)
+		: "r"(current_user_stack)
+		: "rsp"
+		: "volatile");
+		core_scheduler().current_task.borrow_mut().stacks.current_kernel_stack = current_kernel_stack;
+
+		runtime_entry(argc, argv, environ);
 	}
 }
 
@@ -231,11 +232,6 @@ fn boot_processor_main() -> ! {
 
 	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
 	info!("Kernel starts at 0x{:x}", environment::get_base_address());
-    /*
-	info!("BSS starts at 0x{:x}", unsafe {
-		&__bss_start as *const usize as usize
-	});
-*/
         info!(
 		"TLS starts at 0x{:x} (size {} Bytes)",
 		environment::get_tls_start(),

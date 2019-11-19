@@ -73,8 +73,11 @@ pub struct TaskStacks {
 	pub stack: usize,
 	/// Isolated stack of the task
 	pub isolated_stack: usize,
-	// User stack
+	/// User stack
 	pub user_stack: usize,
+	/// Temperary kernel,user stack pointers
+	pub current_kernel_stack: usize,
+	pub current_user_stack: usize,
 }
 
 impl TaskStacks {
@@ -86,13 +89,15 @@ impl TaskStacks {
 		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, false);
 		//info!("Allocating isolated_stack {:#X}, size: {}", isolated_stack, DEFAULT_STACK_SIZE);
 
-		let user_stack = ::mm::user_allocate(DEFAULT_STACK_SIZE, false);
+		let user_stack = ::mm::user_allocate(USER_STACK_SIZE, false);
 
 		Self {
 			is_boot_stack: false,
 			stack: stack,
 			isolated_stack: isolated_stack,
 			user_stack: user_stack,
+			current_kernel_stack: 0x0usize,
+			current_user_stack: 0x0usize,
 		}
 	}
 
@@ -105,6 +110,8 @@ impl TaskStacks {
 			stack: stack,
 			isolated_stack: 0x0usize,
 			user_stack: 0x0usize,
+			current_kernel_stack: 0x0usize,
+			current_user_stack: 0x0usize,
 		}
 	}
 }
@@ -120,7 +127,7 @@ impl Drop for TaskStacks {
 
 			::mm::deallocate(self.isolated_stack, DEFAULT_STACK_SIZE);
 
-			::mm::deallocate(self.user_stack, DEFAULT_STACK_SIZE);
+			::mm::deallocate(self.user_stack, USER_STACK_SIZE);
 		}
 	}
 }
@@ -147,7 +154,16 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 
 		// The tls_pointer is the address to the end of the TLS area requested by the task.
 		let tls_pointer = tls.address() + align_up!(tls_size, 32);
-
+		unsafe {
+			// The x86-64 TLS specification also requires that the tls_pointer can be accessed at fs:0.
+			// This allows TLS variable values to be accessed by "mov rax, fs:0" and a later "lea rdx, [rax+VARIABLE_OFFSET]".
+			// See "ELF Handling For Thread-Local Storage", version 0.20 by Ulrich Drepper, page 12 for details.
+			//
+			// fs:0 is where tls_pointer points to and we have reserved space for a usize value above.
+			isolation_start!();
+			*(tls_pointer as *mut usize) = tls_pointer;
+			isolation_end!();
+		}
 		// As per the x86-64 TLS specification, the FS register holds the tls_pointer.
 		// This allows TLS variable values to be accessed by "mov rax, fs:VARIABLE_OFFSET".
 		processor::writefs(tls_pointer);
@@ -155,30 +171,14 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 			"Set FS to 0x{:x}, TLS size 0x{:x}, TLS data size 0x{:x}",
 			tls_pointer, tls_size, tdata_size
 		);
-
-		unsafe {
-			// The x86-64 TLS specification also requires that the tls_pointer can be accessed at fs:0.
-			// This allows TLS variable values to be accessed by "mov rax, fs:0" and a later "lea rdx, [rax+VARIABLE_OFFSET]".
-			// See "ELF Handling For Thread-Local Storage", version 0.20 by Ulrich Drepper, page 12 for details.
-			//
-			// fs:0 is where tls_pointer points to and we have reserved space for a usize value above.
-
-			let unsafe_tls_pointer = (tls.get_unsafe_storage() + align_up!(tls_size, 32)) as *mut usize;
-			tls.copy_from_safe();
-			isolation_start!();
-			*(unsafe_tls_pointer) = unsafe_tls_pointer as usize;
-			isolation_end!();
-			tls.copy_to_safe();
-
-			/* Copy TLS variables with their initial values on the tls's unsafe_storage.
-        	   Then copy back the TLS variables with their initial values on tls.address()
-			*/
-			list_add(environment::get_tls_start());
-			list_add(tls.address());
-			copy_from_safe(environment::get_tls_start() as *const u8, tdata_size);
-			copy_to_safe(tls.address() as *mut u8, tls_size);
-			clear_unsafe_storage();
-		}
+		/* Copy TLS variables with their initial values on the tls's unsafe_storage.
+			Then copy back the TLS variables with their initial values on tls.address()
+		*/
+		list_add(environment::get_tls_start());
+		list_add(tls.address());
+		copy_from_safe(environment::get_tls_start() as *const u8, tdata_size);
+		copy_to_safe(tls.address() as *mut u8, tls_size);
+		clear_unsafe_storage();
 
 		// Associate the TLS memory to the current task.
 		let mut current_task_borrowed = core_scheduler().current_task.borrow_mut();

@@ -24,13 +24,15 @@ use synch::spinlock::*;
 /// When this time has elapsed and the scheduler is called, it may switch to another ready task.
 pub const TASK_TIME_SLICE: u64 = 10_000;
 
-static NEXT_CORE_ID: AtomicUsize = AtomicUsize::new(1);
-static NO_TASKS: AtomicU32 = AtomicU32::new(0);
+safe_global_var!(static NEXT_CORE_ID: AtomicUsize = AtomicUsize::new(1));
+safe_global_var!(static NO_TASKS: AtomicU32 = AtomicU32::new(0));
+#[allow(unused)]
 /// Map between Core ID and per-core scheduler
-static mut SCHEDULERS: Option<BTreeMap<usize, &PerCoreScheduler>> = None;
+safe_global_var!(static mut SCHEDULERS: Option<BTreeMap<usize, &PerCoreScheduler>> = None);
+#[allow(unused)]
 /// Map between Task ID and Task Control Block
-static mut TASKS: Option<SpinlockIrqSave<BTreeMap<TaskId, Rc<RefCell<Task>>>>> = None;
-static TID_COUNTER: AtomicU32 = AtomicU32::new(0);
+safe_global_var!(static mut TASKS: Option<SpinlockIrqSave<BTreeMap<TaskId, Rc<RefCell<Task>>>>> = None);
+safe_global_var!(static TID_COUNTER: AtomicU32 = AtomicU32::new(0));
 
 struct SchedulerState {
 	/// Queue of tasks, which are ready

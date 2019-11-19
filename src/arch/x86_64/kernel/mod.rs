@@ -70,15 +70,17 @@ pub struct BootInfo {
 	hcmask: [u8; 4],
 }
 
+#[allow(unused)]
 /// Kernel header to announce machine features
 #[cfg(not(feature = "newlib"))]
-static mut BOOT_INFO: *mut BootInfo = ptr::null_mut();
+safe_global_var!(static mut BOOT_INFO: *mut BootInfo = ptr::null_mut());
 
 #[cfg(feature = "newlib")]
-static mut BOOT_INFO: *mut BootInfo = ptr::null_mut();
+safe_global_var!(static mut BOOT_INFO: *mut BootInfo = ptr::null_mut());
 
+#[allow(unused)]
 /// Serial port to print kernel messages
-static mut COM1: SerialPort = SerialPort::new(0x3f8);
+safe_global_var!(static mut COM1: SerialPort = SerialPort::new(0x3f8));
 
 pub fn get_ip() -> [u8; 4] {
 	let mut ip: [u8; 4] = [0, 0, 0, 0];

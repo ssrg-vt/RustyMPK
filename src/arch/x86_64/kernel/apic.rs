@@ -71,19 +71,21 @@ const SMP_BOOT_CODE_OFFSET_ENTRY: usize = 0x08;
 
 const X2APIC_ENABLE: u64 = 1 << 10;
 
-static mut LOCAL_APIC_ADDRESS: usize = 0;
-static mut IOAPIC_ADDRESS: usize = 0;
+safe_global_var!(static mut LOCAL_APIC_ADDRESS: usize = 0);
+safe_global_var!(static mut IOAPIC_ADDRESS: usize = 0);
 
+#[allow(unused)]
 /// Stores the Local APIC IDs of all CPUs. The index equals the Core ID.
 /// Both numbers often match, but don't need to (e.g. when a core has been disabled).
 ///
 /// As Rust currently implements no way of zero-initializing a global Vec in a no_std environment,
 /// we have to encapsulate it in an Option...
-static mut CPU_LOCAL_APIC_IDS: Option<Vec<u8>> = None;
+safe_global_var!(static mut CPU_LOCAL_APIC_IDS: Option<Vec<u8>> = None);
 
+#[allow(unused)]
 /// After calibration, initialize the APIC Timer with this counter value to let it fire an interrupt
 /// after 1 microsecond.
-static mut CALIBRATED_COUNTER_VALUE: u64 = 0;
+safe_global_var!(static mut CALIBRATED_COUNTER_VALUE: u64 = 0);
 
 #[repr(C, packed)]
 struct AcpiMadtHeader {

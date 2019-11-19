@@ -20,12 +20,11 @@ struct KmsgSection {
 	buffer: [u8; KMSG_SIZE + 1],
 }
 
-isolate_global_var!(
-static mut KMSG: KmsgSection = KmsgSection {
+unsafe_global_var!( static mut KMSG: KmsgSection = KmsgSection {
 	buffer: [0; KMSG_SIZE + 1],
 });
 
-static BUFFER_INDEX: AtomicUsize = AtomicUsize::new(0);
+safe_global_var!(static BUFFER_INDEX: AtomicUsize = AtomicUsize::new(0));
 
 pub fn write_byte(byte: u8) {
 	let index = BUFFER_INDEX.fetch_add(1, Ordering::SeqCst);

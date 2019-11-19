@@ -20,37 +20,31 @@ use core::mem;
 use core::sync::atomic::spin_loop_hint;
 use environment;
 
+#[allow(unused)]
 /// Physical and virtual address of the first 2 MiB page that maps the kernel.
 /// Can be easily accessed through kernel_start_address()
-static mut KERNEL_START_ADDRESS: usize = 0;
-
+safe_global_var!(static mut KERNEL_START_ADDRESS: usize = 0);
+#[allow(unused)]
 /// Physical and virtual address of the first page after the kernel.
 /// Can be easily accessed through kernel_end_address()
-static mut KERNEL_END_ADDRESS: usize = 0;
-
+static mut KERNEL_END_ADDRESS: usize = 0; /* CHECK THIS OUT */
+#[allow(unused)]
 /// Start address of the user heap
-static mut HEAP_START_ADDRESS: usize = 0;
-
+safe_global_var!(static mut HEAP_START_ADDRESS: usize = 0);
+#[allow(unused)]
 /// End address of the user heap
-static mut HEAP_END_ADDRESS: usize = 0;
+safe_global_var!(static mut HEAP_END_ADDRESS: usize = 0);
 
 pub const SAFE_MEM_REGION: u8 = 1;
 pub const UNSAFE_MEM_REGION: u8 = 2;
 pub const SHARED_MEM_REGION: u8 = 3;
-pub const USER_MEM_REGION: u8 = 10;
+//pub const USER_MEM_REGION: u8 = 10;
 
-//pub const PKRU_PERMISSION: u32 = 0xC000000C;
-pub const PKRU_PERMISSION: u32 = 0xC;
-pub const USER_PERMISSION: u32 = 0xFC;
+pub const UNSAFE_PERMISSION_IN: u32 = 0xC;
+pub const UNSAFE_PERMISSION_OUT: u32 = !UNSAFE_PERMISSION_IN;
 
-/*
-#[cfg(not(test))]
-extern "C" {
-        static mut __isolated_data_start: usize;
-        static mut __isolated_data_end: usize;
-        static mut __isolated_data_size: usize;
-}
-*/
+//pub const USER_PERMISSION_IN: u32 = 0xfC;
+//pub const USER_PERMISSION_OUT: u32 = !USER_PERMISSION_IN;
 
 pub fn kernel_start_address() -> usize {
 	unsafe { KERNEL_START_ADDRESS }
@@ -74,21 +68,11 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize) -> usize {
 	let mut i: usize = 0;
 	let mut flags = PageTableEntryFlags::empty();
 
-	if virt_addr == 0x600000 {
-		//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-		flags.normal().writable().execute_disable();
-		//flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
-	}
-	else {
-		//info!("virt: {:#X}, size: {:#X}, page size: {:#X}", virt_addr, size, S::SIZE);
-		flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
-	}
-
+	flags.normal().writable().execute_disable();
 	while i < align_down!(size, S::SIZE) {
 		match arch::mm::physicalmem::allocate_aligned(S::SIZE, S::SIZE) {
 			Ok(phys_addr) => {
 				arch::mm::paging::map::<S>(virt_addr + i, phys_addr, 1, flags);
-				//arch::mm::paging::print_page_table_entry::<arch::mm::paging::LargePageSize>(virt_addr + i);
                 i += S::SIZE;
 			}
 			Err(_) => {
@@ -113,8 +97,9 @@ pub fn init() {
 			environment::get_base_address() + environment::get_image_size(),
 			arch::mm::paging::LargePageSize::SIZE
 		);
-		// Protect kernel memory with a protection key
-		arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(KERNEL_START_ADDRESS, (KERNEL_END_ADDRESS - KERNEL_START_ADDRESS)/LargePageSize::SIZE, SAFE_MEM_REGION);
+		info!("KERNEL_START_ADDRESS: {:#X}", KERNEL_START_ADDRESS);
+		info!("get_base_address: {:#X}", environment::get_base_address());
+		info!("get_image_size: {:#X}", environment::get_image_size());
 	}
 
 	arch::mm::init();
@@ -146,8 +131,8 @@ pub fn init() {
 	}
 
 	/* Init isolated .data section */
-	allocate_isolated_data();
-	//allocate_isolated_bss();
+	allocate_safe_data();
+	allocate_unsafe_data();
 
 	let mut map_addr: usize;
 	let mut map_size: usize;
@@ -333,28 +318,40 @@ pub fn user_allocate(sz: usize, execute_disable: bool) -> usize {
 
 	let count = size / BasePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable().pkey(USER_MEM_REGION);
+	flags.normal().writable();
 	if execute_disable {
 		flags.execute_disable();
 	}
 	arch::mm::paging::map::<BasePageSize>(virtual_address, physical_address, count, flags);
-	//arch::mm::paging::print_page_table_entry::<BasePageSize>(virtual_address);
 
 	virtual_address
 }
 
-pub fn allocate_isolated_data() {
+fn allocate_safe_data() {
     let isolated_data_start = 0x400000usize;
-	let aligned_size = LargePageSize::SIZE;
+	let aligned_size = 0x200000usize;
 	/* We harcode the physical address here */
 	let physical_address = 0x400000usize;
 	//let physical_address = arch::mm::physicalmem::allocate_aligned(aligned_size, LargePageSize::SIZE).unwrap();
 	let count = aligned_size / LargePageSize::SIZE;
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
+	flags.normal().writable().pkey(SAFE_MEM_REGION);
 	flags.execute_disable();
 	arch::mm::paging::map::<LargePageSize>(isolated_data_start, physical_address, count, flags);
 	info!("isolated .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", isolated_data_start, physical_address, aligned_size);
+}
+
+fn allocate_unsafe_data() {
+    let user_data_start = 0x600000usize;
+	let aligned_size = 0x200000usize;
+	/* We harcode the physical address here */
+	let physical_address = 0x600000usize;
+	let count = aligned_size / LargePageSize::SIZE;
+	let mut flags = PageTableEntryFlags::empty();
+	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
+	flags.execute_disable();
+	arch::mm::paging::map::<LargePageSize>(user_data_start, physical_address, count, flags);
+	info!("user .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", user_data_start, physical_address, aligned_size);
 }
 
 pub fn deallocate(virtual_address: usize, sz: usize) {

@@ -15,8 +15,8 @@ use mm::freelist::{FreeList, FreeListEntry};
 use multiboot::{MemoryType, Multiboot};
 use synch::spinlock::*;
 
-static PHYSICAL_FREE_LIST: SpinlockIrqSave<FreeList> = SpinlockIrqSave::new(FreeList::new());
-static TOTAL_MEMORY: AtomicUsize = AtomicUsize::new(0);
+safe_global_var!(static PHYSICAL_FREE_LIST: SpinlockIrqSave<FreeList> = SpinlockIrqSave::new(FreeList::new()));
+safe_global_var!(static TOTAL_MEMORY: AtomicUsize = AtomicUsize::new(0));
 
 fn detect_from_multiboot_info() -> Result<(), ()> {
 	let mb_info = get_mbinfo();

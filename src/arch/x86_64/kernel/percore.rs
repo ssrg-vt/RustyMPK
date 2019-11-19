@@ -14,7 +14,7 @@ use x86::bits64::task::TaskStateSegment;
 use x86::msr::*;
 use mm;
 
-pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0);
+pub static mut PERCORE: PerCoreVariables = PerCoreVariables::new(0); /* CHECK THIS OUT */
 
 pub struct PerCoreVariables {
 	/// Sequential ID of this CPU Core.
@@ -171,6 +171,7 @@ pub fn core_id() -> usize {
 	0
 }
 
+#[no_mangle]
 #[inline]
 pub fn core_scheduler() -> &'static mut PerCoreScheduler {
 	unsafe { &mut *PERCORE.scheduler.get() }

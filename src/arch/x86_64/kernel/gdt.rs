@@ -34,11 +34,11 @@ const GDT_ENTRIES: usize = 8192;
 /// interrupts. See also irq.rs.
 const IST_ENTRIES: usize = 4;
 
-isolate_global_var!(static mut GDT: *mut Gdt = 0 as *mut Gdt);
-static mut GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
+unsafe_global_var!(static mut GDT: *mut Gdt = 0 as *mut Gdt);
+safe_global_var!(static mut GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
 	base: 0 as *const Descriptor,
 	limit: 0,
-};
+});
 
 struct Gdt {
 	entries: [Descriptor; GDT_ENTRIES],

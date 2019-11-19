@@ -34,83 +34,155 @@ macro_rules! println {
 	($($arg:tt)+) => (print!("{}\n", format_args!($($arg)+)));
 }
 
-macro_rules! isolate_global_var {
-    /* .data */
+macro_rules! safe_global_var {
+	/* read only */
+	(static $name:ident: $var_type:ty = $val:expr) => {
+        #[link_section = ".safe_data"]
+        static $name: $var_type = $val;
+    };
+    /* uninitialized */
+    (static $name:ident: $var_type:ty) => {
+        #[link_section = ".safe_data"]
+        static $name: $var_type = 0;
+    };
+    /* pub */
+    (pub static $name:ident: $var_type:ty = $val:expr) => {
+        #[link_section = ".safe_data"]
+        pub static $name: $var_type = $val;
+    };
+    /* pub uninitialized */
+    (pub static $name:ident: $var_type:ty) => {
+        #[link_section = ".safe_data"]
+        pub static $name: $var_type = 0;
+	};
+
+	/* writable */
     (static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".isolated_data"]
+        #[link_section = ".safe_data"]
         static mut $name: $var_type = $val;
     };
     /* uninitialized */
     (static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".isolated_data"]
+        #[link_section = ".safe_data"]
         static mut $name: $var_type = 0;
     };
     /* pub */
     (pub static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".isolated_data"]
+        #[link_section = ".safe_data"]
         pub static mut $name: $var_type = $val;
     };
     /* pub uninitialized */
     (pub static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".isolated_data"]
+        #[link_section = ".safe_data"]
         pub static mut $name: $var_type = 0;
     };
 }
-/*
-macro_rules! isolate_raw_pointer {
-    /* write on a raw pointer */
-    (*$name:ident = $val:expr) => {{
-        asm!("mov $0, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			:
-			: "r"(mm::PKRU_PERMISSION)
-			: "eax", "ecx", "edx"
-			: "volatile");
 
-        *$name = $val;
+macro_rules! unsafe_global_var {
+	/* read only */
+	(static $name:ident: $var_type:ty = $val:expr) => {
+		#[link_section = ".unsafe_data"]
+		static $name: $var_type = $val;
+	};
+	/* uninitialized */
+	(static $name:ident: $var_type:ty) => {
+		#[link_section = ".unsafe_data"]
+		static $name: $var_type = 0;
+	};
+	/* pub */
+	(pub static $name:ident: $var_type:ty = $val:expr) => {
+		#[link_section = ".unsafe_data"]
+		pub static $name: $var_type = $val;
+	};
+	/* pub uninitialized */
+	(pub static $name:ident: $var_type:ty) => {
+		#[link_section = ".unsafe_data"]
+		pub static $name: $var_type = 0;
+	};
 
-        asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence"
-			:
-			:
-			: "eax", "ecx", "edx"
-			: "volatile");
-
-    }};
-
-    /* read on a raw pointer */ 
-    (*$name:ident) => {{
-        asm!("mov $0, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			:
-			: "r"(mm::PKRU_PERMISSION)
-			: "eax", "ecx", "edx"
-			: "volatile");
-
-        let temp_val = *$name;
-        
-        asm!("xor %eax, %eax;
-			  xor %ecx, %ecx;
-			  xor %edx, %edx;
-			  wrpkru;
-              lfence"
-			:
-			:
-			: "eax", "ecx", "edx"
-			: "volatile");
-        temp_val
-    }};
+	/* writable */
+    (static mut $name:ident: $var_type:ty = $val:expr) => {
+        #[link_section = ".unsafe_data"]
+        static mut $name: $var_type = $val;
+    };
+    /* uninitialized */
+    (static mut $name:ident: $var_type:ty) => {
+        #[link_section = ".unsafe_data"]
+        static mut $name: $var_type = 0;
+    };
+    /* pub */
+    (pub static mut $name:ident: $var_type:ty = $val:expr) => {
+        #[link_section = ".unsafe_data"]
+        pub static mut $name: $var_type = $val;
+    };
+    /* pub uninitialized */
+    (pub static mut $name:ident: $var_type:ty) => {
+        #[link_section = ".unsafe_data"]
+        pub static mut $name: $var_type = 0;
+    };
 }
-*/
+
+macro_rules! kernel_enter {
+	($e:expr) => {
+		#[allow(unused)]
+		unsafe {
+			asm!("xor %eax, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				:
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+
+			use x86_64::kernel::percore::core_scheduler;
+			let current_kernel_stack = core_scheduler().current_task.borrow().stacks.current_kernel_stack;
+			let current_user_stack: usize;
+			
+			asm!("mov %rsp, $0;
+				  mov $1, %rsp"
+				: "=r"(current_user_stack)
+				: "r"(current_kernel_stack)
+				: "rsp"
+				: "volatile");
+
+			core_scheduler().current_task.borrow_mut().stacks.current_user_stack = current_user_stack;
+
+			//println!("enter: {}\\", $e);
+		}
+	};
+}
+
+macro_rules! kernel_exit {
+	($e:expr) => {
+		//println!("exit : {}/", $e);
+		use x86_64::kernel::percore::core_scheduler;
+		let current_user_stack = core_scheduler().current_task.borrow().stacks.current_user_stack;
+		let current_kernel_stack: usize;
+		#[allow(unused)]
+		unsafe {
+			asm!("mov %rsp, $0;
+				  mov $1, %rsp"
+				: "=r"(current_kernel_stack)
+				: "r"(current_user_stack)
+				: "rsp"
+				: "volatile");
+		
+			core_scheduler().current_task.borrow_mut().stacks.current_kernel_stack = current_kernel_stack;
+
+			asm!("mov $$0xffc, %eax;
+					xor %ecx, %ecx;
+					xor %edx, %edx;
+					wrpkru;
+					lfence"
+				:
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+		}
+	};
+}
 
 macro_rules! isolation_start {
 	() => {
@@ -121,7 +193,7 @@ macro_rules! isolation_start {
 			wrpkru;
 			lfence"
 			:
-			: "r"(mm::PKRU_PERMISSION)
+			: "r"(mm::UNSAFE_PERMISSION_IN)
 			: "eax", "ecx", "edx"
 			: "volatile");
 	};
@@ -131,12 +203,12 @@ macro_rules! isolation_end {
 	() => {
 		asm!("xor %ecx, %ecx;
 			rdpkru;
-			xor $0, %eax;
+			and $0, %eax;
 			xor %edx, %edx;
 			wrpkru;
 			lfence"
 			:
-			: "r"(mm::PKRU_PERMISSION)
+			: "r"(mm::UNSAFE_PERMISSION_OUT)
 			: "eax", "ecx", "edx"
 			: "volatile"); 
 	};
@@ -151,7 +223,7 @@ macro_rules! isolation_wrapper {
 			wrpkru;
 			lfence"
 			:
-			: "r"(mm::PKRU_PERMISSION)
+			: "r"(mm::UNSAFE_PERMISSION_IN)
 			: "eax", "ecx", "edx"
 			: "volatile");
 
@@ -159,12 +231,12 @@ macro_rules! isolation_wrapper {
 
 		asm!("xor %ecx, %ecx;
 			rdpkru;
-			xor $0, %eax;
+			and $0, %eax;
 			xor %edx, %edx;
 			wrpkru;
 			lfence"
 			:
-			: "r"(mm::PKRU_PERMISSION)
+			: "r"(mm::UNSAFE_PERMISSION_OUT)
 			: "eax", "ecx", "edx"
 			: "volatile"); 
 
@@ -281,7 +353,7 @@ macro_rules! isolate_function_weak {
 		/* Set the current stack frame as SHARED_MEM_REGION in order that the isolated unsafe function can access it. */
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SHARED_MEM_REGION);
 
-		/* or $1, %eax -> Add mm::PKRU_PERMISSION to current value of PKRU */
+		/* or $1, %eax -> Add mm::UNSAFE_PERMISSION to current value of PKRU */
 		asm!("mov $0, %rsp;
 			  xor %ecx, %ecx;
 			  rdpkru;
@@ -290,7 +362,7 @@ macro_rules! isolate_function_weak {
 			  wrpkru;
 			  lfence"
 			: 
-			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
+			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -298,13 +370,13 @@ macro_rules! isolate_function_weak {
 
 		asm!("xor %ecx, %ecx;
 			  rdpkru;
-			  xor $0, %eax;		
+			  and $0, %eax;		
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
 			  mov $1, %rsp"
 			:
-			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
+			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -341,7 +413,7 @@ macro_rules! isolate_function_weak {
 			  wrpkru;
 			  lfence"
 			: 
-			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
+			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -349,13 +421,13 @@ macro_rules! isolate_function_weak {
 
 		asm!("xor %ecx, %ecx;
 			  rdpkru;
-			  xor $0, %eax;		
+			  and $0, %eax;		
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
 			  mov $1, %rsp"
 			:
-			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
+			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -380,7 +452,7 @@ macro_rules! isolate_function_strong {
 			  wrpkru;
 			  lfence"
 			: "=r"(__current_rsp)
-			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
+			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -388,13 +460,13 @@ macro_rules! isolate_function_strong {
 
 		asm!("xor %ecx, %ecx;
 			  rdpkru;
-			  xor $0, %eax;
+			  and $0, %eax;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
 			  mov $1, %rsp"
 			:
-			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
+			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -416,7 +488,7 @@ macro_rules! isolate_function_strong {
 			  wrpkru;
 			  lfence"
 			: "=r"(__current_rsp)
-			: "r"(__isolated_stack),"r"(mm::PKRU_PERMISSION)
+			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -424,13 +496,13 @@ macro_rules! isolate_function_strong {
 
 		asm!("xor %ecx, %ecx;
 			  rdpkru;
-			  xor $0, %eax;
+			  and $0, %eax;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence;
 			  mov $1, %rsp"
 			:
-			: "r"(mm::PKRU_PERMISSION),"r"(__current_rsp)
+			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
@@ -443,22 +515,19 @@ macro_rules! isolate_runtime {
 		use x86_64::kernel::percore::core_scheduler;
         use config::DEFAULT_STACK_SIZE;
 		let __user_stack = core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE;
-		let mut __current_rsp: usize = 0;
 
-		asm!("mov %rsp, $0;
-			  mov $1, %rsp;
+		asm!("mov $0, %rsp;
 			  xor %ecx, %ecx;
 			  rdpkru;
-			  or $2, %eax;
+			  or $1, %eax;
 			  xor %edx, %edx;
 			  wrpkru;
 			  lfence"
-			: "=r"(__current_rsp)
+			:
 			: "r"(__user_stack),"r"(mm::USER_PERMISSION)
 			: "rsp", "eax", "ecx", "edx"
 			: "volatile");
 
-		info!("aa: {:#X}", mm::USER_PERMISSION);
 		$f($($x)*);
 
 	}};

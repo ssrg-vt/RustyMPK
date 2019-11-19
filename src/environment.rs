@@ -24,8 +24,8 @@ use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
 use mm;
 
-static mut COMMAND_LINE_CPU_FREQUENCY: u16 = 0;
-static mut IS_PROXY: bool = false;
+safe_global_var!(static mut COMMAND_LINE_CPU_FREQUENCY: u16 = 0);
+safe_global_var!(static mut IS_PROXY: bool = false);
 
 fn parse_command_line() {
 	let cmdsize = get_cmdsize();

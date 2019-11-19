@@ -3,8 +3,8 @@ use core::ptr::{write_bytes, copy_nonoverlapping};
 use x86::msr::*;
 use mm;
 
-static mut LIST: [usize;100] = [0;100];
-static SIZE: usize = 0x1000;
+safe_global_var!(static mut LIST: [usize;100] = [0;100]);
+safe_global_var!(static SIZE: usize = 0x1000);
 
 pub fn unsafe_storage_init() {
     let unsafe_storage = mm::unsafe_allocate(SIZE, true);

@@ -11,7 +11,7 @@ use mm;
 use mm::freelist::{FreeList, FreeListEntry};
 use synch::spinlock::*;
 
-static KERNEL_FREE_LIST: SpinlockIrqSave<FreeList> = SpinlockIrqSave::new(FreeList::new());
+safe_global_var!(static KERNEL_FREE_LIST: SpinlockIrqSave<FreeList> = SpinlockIrqSave::new(FreeList::new()));
 
 pub fn init() {
 	let entry = Node::new(FreeListEntry {

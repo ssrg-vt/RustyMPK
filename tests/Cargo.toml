@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-rayon = { git = "https://github.com/hermitcore/rayon.git" }
+rayon = "1.2.0"
 http = "0.1.18"
 
 [profile.release]

@@ -14,7 +14,7 @@ use arch::scheduler::TaskStacks;
 use collections::{DoublyLinkedList, Node};
 use core::cell::RefCell;
 use core::fmt;
-use core::ptr::{write_bytes, copy_nonoverlapping};
+//use core::ptr::{write_bytes, copy_nonoverlapping};
 use mm;
 use scheduler;
 use synch::spinlock::SpinlockIrqSave;
@@ -305,7 +305,7 @@ impl PriorityTaskQueue {
 pub struct TaskTLS {
 	address: usize,
 	size: usize,
-	unsafe_storage: usize,
+	//unsafe_storage: usize,
 }
 
 impl TaskTLS {
@@ -314,16 +314,16 @@ impl TaskTLS {
 		// additional alignment for TLS variables.
 		let memory_size = align_up!(size, BasePageSize::SIZE);
 		Self {
-			address: mm::allocate(memory_size, true),
+			address: mm::user_allocate(memory_size, true),
 			size: memory_size,
-			unsafe_storage: mm::unsafe_allocate(memory_size, true),
+			//unsafe_storage: mm::unsafe_allocate(memory_size, true),
 		}
 	}
 
 	pub fn address(&self) -> usize {
 		self.address
 	}
-
+/*
 	pub fn get_unsafe_storage(&self) -> usize {
 		self.unsafe_storage
 	}
@@ -340,6 +340,7 @@ impl TaskTLS {
 			write_bytes(self.unsafe_storage as *mut u8, 0x00, self.size);
 		}
 	}
+*/
 }
 
 impl Drop for TaskTLS {
@@ -349,7 +350,7 @@ impl Drop for TaskTLS {
 			self.address, self.size
 		);
 		mm::deallocate(self.address, self.size);
-		mm::deallocate(self.unsafe_storage, self.size);
+		//mm::deallocate(self.unsafe_storage, self.size);
 	}
 }
 

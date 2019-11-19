@@ -97,14 +97,14 @@ impl IdtEntry {
 /// an "Unhandled Interrupt" exception.
 pub const IDT_ENTRIES: usize = 256;
 
-static mut IDT: [IdtEntry; IDT_ENTRIES] = [IdtEntry::MISSING; IDT_ENTRIES];
-static mut IDTP: DescriptorTablePointer<IdtEntry> = DescriptorTablePointer {
+safe_global_var!(static mut IDT: [IdtEntry; IDT_ENTRIES] = [IdtEntry::MISSING; IDT_ENTRIES]);
+safe_global_var!(static mut IDTP: DescriptorTablePointer<IdtEntry> = DescriptorTablePointer {
 	base: 0 as *const IdtEntry,
 	limit: 0,
-};
+});
 
 pub fn install() {
-	static IDT_INIT: AtomicBool = AtomicBool::new(false);
+	safe_global_var!(static IDT_INIT: AtomicBool = AtomicBool::new(false));
 
 	unsafe {
 		let is_init = IDT_INIT.swap(true, Ordering::SeqCst);

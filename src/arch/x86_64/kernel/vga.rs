@@ -20,7 +20,7 @@ const COLS: usize = 80;
 const ROWS: usize = 25;
 const VGA_BUFFER_ADDRESS: usize = 0xB8000;
 
-static mut VGA_SCREEN: VgaScreen = VgaScreen::new();
+safe_global_var!(static mut VGA_SCREEN: VgaScreen = VgaScreen::new());
 
 #[derive(Clone, Copy)]
 #[repr(C, packed)]

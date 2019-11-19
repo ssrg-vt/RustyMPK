@@ -38,23 +38,23 @@ const EFER_LMSLE: u64 = (1 << 13);
 const EFER_FFXSR: u64 = (1 << 14);
 const EFER_TCE: u64 = (1 << 15);
 
-static mut CPU_FREQUENCY: CpuFrequency = CpuFrequency::new();
-static mut CPU_SPEEDSTEP: CpuSpeedStep = CpuSpeedStep::new();
-static mut PHYSICAL_ADDRESS_BITS: u8 = 0;
-static mut LINEAR_ADDRESS_BITS: u8 = 0;
-static mut MEASUREMENT_TIMER_TICKS: u64 = 0;
-static mut SUPPORTS_1GIB_PAGES: bool = false;
-static mut SUPPORTS_AVX: bool = false;
-static mut SUPPORTS_RDRAND: bool = false;
-static mut SUPPORTS_TSC_DEADLINE: bool = false;
-static mut SUPPORTS_X2APIC: bool = false;
-static mut SUPPORTS_XSAVE: bool = false;
+safe_global_var!(static mut CPU_FREQUENCY: CpuFrequency = CpuFrequency::new());
+safe_global_var!(static mut CPU_SPEEDSTEP: CpuSpeedStep = CpuSpeedStep::new());
+safe_global_var!(static mut PHYSICAL_ADDRESS_BITS: u8 = 0);
+safe_global_var!(static mut LINEAR_ADDRESS_BITS: u8 = 0);
+safe_global_var!(static mut MEASUREMENT_TIMER_TICKS: u64 = 0);
+safe_global_var!(static mut SUPPORTS_1GIB_PAGES: bool = false);
+safe_global_var!(static mut SUPPORTS_AVX: bool = false);
+safe_global_var!(static mut SUPPORTS_RDRAND: bool = false);
+safe_global_var!(static mut SUPPORTS_TSC_DEADLINE: bool = false);
+safe_global_var!(static mut SUPPORTS_X2APIC: bool = false);
+safe_global_var!(static mut SUPPORTS_XSAVE: bool = false);
 
-static mut SUPPORTS_PKU: bool = false;
-static mut SUPPORTS_OSPKE: bool = false;
+safe_global_var!(static mut SUPPORTS_PKU: bool = false);
+safe_global_var!(static mut SUPPORTS_OSPKE: bool = false);
 
-static mut SUPPORTS_FSGS: bool = false;
-static mut TIMESTAMP_FUNCTION: unsafe fn() -> u64 = get_timestamp_rdtsc;
+safe_global_var!(static mut SUPPORTS_FSGS: bool = false);
+safe_global_var!(static mut TIMESTAMP_FUNCTION: unsafe fn() -> u64 = get_timestamp_rdtsc);
 
 #[repr(C, align(16))]
 pub struct XSaveLegacyRegion {

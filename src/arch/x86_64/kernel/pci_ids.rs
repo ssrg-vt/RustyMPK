@@ -20,7 +20,7 @@ pub struct Device {
 	pub name: &'static str,
 }
 
-pub static CLASSES: &[Class] = &[
+safe_global_var!(pub static CLASSES: &[Class] = &[
 	Class {
 		id: 0x00,
 		name: "Unclassified device",
@@ -578,9 +578,9 @@ pub static CLASSES: &[Class] = &[
 		name: "Unassigned class",
 		subclasses: &[],
 	},
-];
+]);
 
-pub static VENDORS: &[Vendor] = &[
+safe_global_var!(pub static VENDORS: &[Vendor] = &[
 	Vendor { id: 0x0001, name: "SafeNet (wrong ID)", devices: &[
 	] },
 	Vendor { id: 0x0010, name: "Allied Telesis, Inc (Wrong ID)", devices: &[
@@ -19124,4 +19124,4 @@ pub static VENDORS: &[Vendor] = &[
 	] },
 	Vendor { id: 0xFFFF, name: "Illegal Vendor ID", devices: &[
 	] },
-];
+]);

@@ -30,7 +30,7 @@ impl fmt::Write for Console {
 	}
 }
 
-pub static CONSOLE: SpinlockIrqSave<Console> = SpinlockIrqSave::new(Console);
+safe_global_var!(pub static CONSOLE: SpinlockIrqSave<Console> = SpinlockIrqSave::new(Console));
 
 #[test]
 fn test_console() {
