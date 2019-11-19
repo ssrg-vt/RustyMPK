@@ -8,6 +8,7 @@
 use alloc::boxed::Box;
 use errno::*;
 use synch::spinlock::*;
+use mm;
 
 pub struct SpinlockContainer<'a> {
 	lock: Spinlock<()>,
@@ -21,7 +22,9 @@ pub struct SpinlockIrqSaveContainer<'a> {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
+	kernel_enter!("sys_spinlock_init");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_init");
 		return -EINVAL;
 	}
 
@@ -32,12 +35,15 @@ pub extern "C" fn sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
 	unsafe {
 		*lock = Box::into_raw(boxed_container);
 	}
+	kernel_exit!("sys_spinlock_init");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_destroy(lock: *mut SpinlockContainer) -> i32 {
+	kernel_enter!("sys_spinlock_destroy");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_destroy");
 		return -EINVAL;
 	}
 
@@ -45,12 +51,15 @@ pub extern "C" fn sys_spinlock_destroy(lock: *mut SpinlockContainer) -> i32 {
 	unsafe {
 		Box::from_raw(lock);
 	}
+	kernel_exit!("sys_spinlock_destroy");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_lock(lock: *mut SpinlockContainer) -> i32 {
+	kernel_enter!("sys_spinlock_lock");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_lock");
 		return -EINVAL;
 	}
 
@@ -60,12 +69,15 @@ pub extern "C" fn sys_spinlock_lock(lock: *mut SpinlockContainer) -> i32 {
 		"Called sys_spinlock_lock when a lock is already held!"
 	);
 	container.guard = Some(container.lock.lock());
+	kernel_exit!("sys_spinlock_lock");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_unlock(lock: *mut SpinlockContainer) -> i32 {
+	kernel_enter!("sys_spinlock_unlock");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_unlock");
 		return -EINVAL;
 	}
 
@@ -75,12 +87,15 @@ pub extern "C" fn sys_spinlock_unlock(lock: *mut SpinlockContainer) -> i32 {
 		"Called sys_spinlock_unlock when no lock is currently held!"
 	);
 	container.guard = None;
+	kernel_exit!("sys_spinlock_unlock");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveContainer) -> i32 {
+	kernel_enter!("sys_spinlock_irqsave_init");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_irqsave_init");
 		return -EINVAL;
 	}
 
@@ -91,12 +106,15 @@ pub extern "C" fn sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveConta
 	unsafe {
 		*lock = Box::into_raw(boxed_container);
 	}
+	kernel_exit!("sys_spinlock_irqsave_init");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_destroy(lock: *mut SpinlockIrqSaveContainer) -> i32 {
+	kernel_enter!("sys_spinlock_irqsave_destroy");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_irqsave_destroy");
 		return -EINVAL;
 	}
 
@@ -104,12 +122,15 @@ pub extern "C" fn sys_spinlock_irqsave_destroy(lock: *mut SpinlockIrqSaveContain
 	unsafe {
 		Box::from_raw(lock);
 	}
+	kernel_exit!("sys_spinlock_irqsave_destroy");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_lock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
+	kernel_enter!("sys_spinlock_irqsave_lock");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_irqsave_lock");
 		return -EINVAL;
 	}
 
@@ -119,12 +140,15 @@ pub extern "C" fn sys_spinlock_irqsave_lock(lock: *mut SpinlockIrqSaveContainer)
 		"Called sys_spinlock_irqsave_lock when a lock is already held!"
 	);
 	container.guard = Some(container.lock.lock());
+	kernel_exit!("sys_spinlock_irqsave_lock");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_unlock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
+	kernel_enter!("sys_spinlock_irqsave_unlock");
 	if lock.is_null() {
+		kernel_exit!("sys_spinlock_irqsave_unlock");
 		return -EINVAL;
 	}
 
@@ -134,5 +158,6 @@ pub extern "C" fn sys_spinlock_irqsave_unlock(lock: *mut SpinlockIrqSaveContaine
 		"Called sys_spinlock_irqsave_unlock when no lock is currently held!"
 	);
 	container.guard = None;
+	kernel_exit!("sys_spinlock_irqsave_unlock");
 	0
 }

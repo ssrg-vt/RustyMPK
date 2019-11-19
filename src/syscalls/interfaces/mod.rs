@@ -64,8 +64,10 @@ pub trait SyscallInterface: Send + Sync {
 	}
 
 	fn write(&self, fd: i32, buf: *const u8, len: usize) -> isize {
+		kernel_enter!("write");
 		if fd > 2 {
 			debug!("write is only implemented for stdout & stderr");
+			kernel_exit!("write");
 			return -EINVAL as isize;
 		}
 
@@ -78,7 +80,7 @@ pub trait SyscallInterface: Send + Sync {
 				.write_str(str::from_utf8_unchecked(slice))
 				.unwrap();
 		}
-
+		kernel_exit!("write");
 		len as isize
 	}
 

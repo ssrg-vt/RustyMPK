@@ -8,10 +8,13 @@
 use alloc::boxed::Box;
 use errno::*;
 use synch::recmutex::RecursiveMutex;
+use mm;
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
+	kernel_enter!("sys_recmutex_init");
 	if recmutex.is_null() {
+		kernel_exit!("sys_recmutex_init");
 		return -EINVAL;
 	}
 
@@ -20,12 +23,15 @@ pub extern "C" fn sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
 	unsafe {
 		*recmutex = Box::into_raw(boxed_mutex);
 	}
+	kernel_exit!("sys_recmutex_init");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
+	kernel_enter!("sys_recmutex_destroy");
 	if recmutex.is_null() {
+		kernel_exit!("sys_recmutex_destroy");
 		return -EINVAL;
 	}
 
@@ -34,27 +40,34 @@ pub extern "C" fn sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
 	unsafe {
 		Box::from_raw(recmutex);
 	}
+	kernel_exit!("sys_recmutex_destroy");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_lock(recmutex: *mut RecursiveMutex) -> i32 {
+	kernel_enter!("sys_recmutex_lock");
 	if recmutex.is_null() {
+		kernel_exit!("sys_recmutex_lock");
 		return -EINVAL;
 	}
 
 	let mutex = unsafe { &*recmutex };
 	mutex.acquire();
+	kernel_exit!("sys_recmutex_lock");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_unlock(recmutex: *mut RecursiveMutex) -> i32 {
+	kernel_enter!("sys_recmutex_unlock");
 	if recmutex.is_null() {
+		kernel_exit!("sys_recmutex_unlock");
 		return -EINVAL;
 	}
 
 	let mutex = unsafe { &*recmutex };
 	mutex.release();
+	kernel_exit!("sys_recmutex_unlock");
 	0
 }

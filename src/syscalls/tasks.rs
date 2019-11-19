@@ -17,6 +17,7 @@ use scheduler;
 use scheduler::task::{Priority, TaskId};
 use syscalls;
 use syscalls::timer::timespec;
+use mm;
 
 #[cfg(feature = "newlib")]
 pub type SignalHandler = extern "C" fn(i32);
@@ -24,17 +25,24 @@ pub type Tid = u32;
 
 #[no_mangle]
 pub extern "C" fn sys_getpid() -> Tid {
+	kernel_enter!("sys_getpid");
 	let current_task_borrowed = core_scheduler().current_task.borrow();
-	current_task_borrowed.id.into() as Tid
+	let tid = current_task_borrowed.id.into() as Tid;
+	kernel_exit!("sys_getpid");
+	tid
 }
 
 #[no_mangle]
 pub extern "C" fn sys_getprio(id: *const Tid) -> i32 {
+	kernel_enter!("sys_getprio");
 	let current_task_borrowed = core_scheduler().current_task.borrow();
 
 	if id.is_null() || unsafe { *id } == current_task_borrowed.id.into() as u32 {
-		i32::from(current_task_borrowed.prio.into())
+		let prio = i32::from(current_task_borrowed.prio.into());
+		kernel_exit!("sys_getprio");
+		prio
 	} else {
+		kernel_exit!("sys_getprio");
 		-EINVAL
 	}
 }
@@ -53,6 +61,7 @@ pub extern "C" fn sys_exit(arg: i32) -> ! {
 #[no_mangle]
 pub extern "C" fn sys_thread_exit(arg: i32) -> ! {
 	debug!("Exit thread with error code {}!", arg);
+    kernel_enter!("sys_thread_exit");
 	core_scheduler().exit(arg);
 }
 
@@ -62,7 +71,7 @@ pub extern "C" fn sys_abort() -> ! {
 }
 
 #[cfg(feature = "newlib")]
-static SBRK_COUNTER: AtomicUsize = AtomicUsize::new(0);
+safe_global_var!(static SBRK_COUNTER: AtomicUsize = AtomicUsize::new(0));
 
 #[cfg(feature = "newlib")]
 pub fn sbrk_init() {
@@ -72,6 +81,7 @@ pub fn sbrk_init() {
 #[cfg(feature = "newlib")]
 #[no_mangle]
 pub extern "C" fn sys_sbrk(incr: isize) -> usize {
+	kernel_enter!("sys_sbrk");
 	// Get the boundaries of the task heap and verify that they are suitable for sbrk.
 	let task_heap_start = task_heap_start();
 	let task_heap_end = task_heap_end();
@@ -84,12 +94,13 @@ pub extern "C" fn sys_sbrk(incr: isize) -> usize {
 		old_end = SBRK_COUNTER.fetch_sub(incr.abs() as usize, Ordering::SeqCst);
 		assert!(task_heap_start < old_end - incr.abs() as usize);
 	}
-
+	kernel_exit!("sys_sbrk");
 	old_end
 }
 
 #[no_mangle]
 pub extern "C" fn sys_usleep(usecs: u64) {
+	kernel_enter!("sys_usleep");
 	if usecs > (scheduler::TASK_TIME_SLICE as u64) {
 		// Enough time to set a wakeup timer and block the current task.
 		debug!("sys_usleep blocking the task for {} microseconds", usecs);
@@ -107,6 +118,7 @@ pub extern "C" fn sys_usleep(usecs: u64) {
 		// Not enough time to set a wakeup timer, so just do busy-waiting.
 		arch::processor::udelay(usecs);
 	}
+	kernel_exit!("sys_usleep");
 }
 
 #[no_mangle]
@@ -139,6 +151,7 @@ pub extern "C" fn sys_nanosleep(rqtp: *const timespec, _rmtp: *mut timespec) -> 
 #[cfg(feature = "newlib")]
 #[no_mangle]
 pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
+	kernel_enter!("sys_clone");
 	let task_id = core_scheduler().clone(func, arg);
 
 	if !id.is_null() {
@@ -146,13 +159,15 @@ pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize
 			*id = task_id.into() as u32;
 		}
 	}
-
+	kernel_exit!("sys_clone");
 	0
 }
 
 #[no_mangle]
 pub extern "C" fn sys_yield() {
+	kernel_enter!("sys_yield");
 	core_scheduler().scheduler();
+	kernel_exit!("sys_yield");
 }
 
 #[cfg(feature = "newlib")]
@@ -180,7 +195,8 @@ pub extern "C" fn sys_spawn(
 	prio: u8,
 	selector: isize,
 ) -> i32 {
-	static CORE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+	kernel_enter!("sys_spawn");
+	safe_global_var!(static CORE_COUNTER: AtomicUsize = AtomicUsize::new(0));
 
 	let core_id = if selector < 0 {
 		// use Round Robin to schedule the cores
@@ -197,12 +213,12 @@ pub extern "C" fn sys_spawn(
 			*id = task_id.into() as u32;
 		}
 	}
-
+	kernel_exit!("sys_spawn");
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn sys_join(id: Tid) -> i32 {
+pub extern "C" fn sys_join(id: Tid) -> i32 { /* FIXME, kernel_exit!("") not working! */
 	match scheduler::join(TaskId::from(id)) {
 		Ok(()) => 0,
 		_ => -EINVAL,

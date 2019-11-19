@@ -15,17 +15,17 @@ fn test_result<T>(result: Result<(), T>) -> &'static str {
 }
 
 fn main() {
+    println!("Rusty test main starts");
 	unsafe {
 		let val: u32;
-		unsafe {
-			asm!("xor %ecx, %ecx;
-				  rdpkru;
-				  movl %eax, $0"
-				 : "=r"(val)
-				 :
-				 : "eax", "edx", "ecx"
-				 : "volatile");
-		}
+		asm!("xor %ecx, %ecx;
+		      rdpkru;
+		      movl %eax, $0;
+		      lfence"
+		    : "=r"(val)
+		    :
+		    : "eax", "ecx"
+		    : "volatile");
 		println!("PKRU val in main(): {:#X}", val);
 	}
 	/*
@@ -61,7 +61,6 @@ fn main() {
 		stringify!(read_file),
 		test_result(read_file())
 	);
-        */
 	println!(
 		"Test {} ... {}",
 		stringify!(create_file),
@@ -72,21 +71,26 @@ fn main() {
 		stringify!(threading),
 		test_result(threading())
 	);
+	*/
 	println!(
 		"Test {} ... {}",
 		stringify!(pi_sequential),
 		test_result(pi_sequential(5000000))
 	);
+	/*
 	println!(
 		"Test {} ... {}",
 		stringify!(pi_parallel),
 		test_result(pi_parallel(2, 5000000))
 	);
+
 	println!(
 		"Test {} ... {}",
 		stringify!(laplace),
 		test_result(laplace(128, 128))
 	);
+	*/
+
 	println!(
 		"Test {} ... {}",
 		stringify!(test_matmul_strassen),
@@ -109,9 +113,11 @@ fn main() {
 		stringify!(bench_sched_two_threads),
 		test_result(bench_sched_two_threads())
 	);
+	/*
 	println!(
 		"Test {} ... {}",
 		stringify!(test_http_request),
 		test_result(test_http_request())
 	);
+	*/
 }

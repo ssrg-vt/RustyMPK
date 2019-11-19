@@ -10,6 +10,7 @@ use arch::percore::*;
 use core::mem;
 use scheduler;
 use scheduler::task::PriorityTaskQueue;
+use mm;
 
 struct CondQueue {
 	queue: PriorityTaskQueue,
@@ -33,9 +34,11 @@ impl Drop for CondQueue {
 
 #[no_mangle]
 pub unsafe fn sys_destroy_queue(ptr: usize) -> i32 {
+	kernel_enter!("sys_destroy_queue");
 	let id = ptr as *mut usize;
 	if id.is_null() {
 		debug!("sys_wait: ivalid address to condition variable");
+		kernel_exit!("sys_destroy_queue");
 		return -1;
 	}
 
@@ -46,16 +49,18 @@ pub unsafe fn sys_destroy_queue(ptr: usize) -> i32 {
 		// reset id
 		*id = 0;
 	}
-
+	kernel_exit!("sys_destroy_queue");
 	0
 }
 
 #[no_mangle]
 pub unsafe fn sys_notify(ptr: usize, count: i32) -> i32 {
+	kernel_enter!("sys_notify");
 	let id = ptr as *const usize;
 	if id.is_null() || *id == 0 {
 		// invalid argument
 		debug!("sys_notify: invalid address to condition variable");
+		kernel_exit!("sys_notify");
 		return -1;
 	}
 
@@ -78,15 +83,17 @@ pub unsafe fn sys_notify(ptr: usize, count: i32) -> i32 {
 			}
 		}
 	}
-
+	kernel_exit!("sys_notify");
 	0
 }
 
 #[no_mangle]
 pub unsafe fn sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
+	kernel_enter!("sys_add_queue");
 	let id = ptr as *mut usize;
 	if id.is_null() {
 		debug!("sys_wait: ivalid address to condition variable");
+		kernel_exit!("sys_add_queue");
 		return -1;
 	}
 
@@ -113,14 +120,15 @@ pub unsafe fn sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 		let cond = &mut *((*id) as *mut CondQueue);
 		cond.queue.push(core_scheduler.current_task.clone());
 	}
-
+	kernel_exit!("sys_add_queue");
 	0
 }
 
 #[no_mangle]
 pub fn sys_wait(_ptr: usize) -> i32 {
 	// Switch to the next task.
+	kernel_enter!("sys_wait");
 	core_scheduler().scheduler();
-
+	kernel_exit!("sys_wait");
 	0
 }

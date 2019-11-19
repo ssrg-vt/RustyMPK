@@ -7,8 +7,9 @@
 
 use arch;
 use synch::spinlock::Spinlock;
+use mm;
 
-static PARK_MILLER_LEHMER_SEED: Spinlock<u32> = Spinlock::new(0);
+safe_global_var!(static PARK_MILLER_LEHMER_SEED: Spinlock<u32> = Spinlock::new(0));
 
 fn generate_park_miller_lehmer_random_number() -> u32 {
 	let mut seed = PARK_MILLER_LEHMER_SEED.lock();
@@ -19,10 +20,14 @@ fn generate_park_miller_lehmer_random_number() -> u32 {
 
 #[no_mangle]
 pub extern "C" fn sys_rand() -> u32 {
+    kernel_enter!("sys_rand");        
 	if let Some(value) = arch::processor::generate_random_number() {
+        kernel_exit!("sys_rand");
 		value
 	} else {
-		generate_park_miller_lehmer_random_number()
+		let random = generate_park_miller_lehmer_random_number();
+		kernel_exit!("sys_rand");
+        random
 	}
 }
 

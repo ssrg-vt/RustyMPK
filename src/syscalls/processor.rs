@@ -6,15 +6,22 @@
 // copied, modified, or distributed except according to those terms.
 
 use arch;
+use mm;
 
 /** Returns the number of processors currently online. */
 #[no_mangle]
 pub extern "C" fn sys_get_processor_count() -> usize {
-	arch::get_processor_count()
+        kernel_enter!("sys_get_processor_count");
+        let count = arch::get_processor_count();
+        kernel_exit!("sys_get_processor_count");
+        count
 }
 
 /** Returns the processor frequency in MHz. */
 #[no_mangle]
 pub extern "C" fn sys_get_processor_frequency() -> u16 {
-	arch::processor::get_frequency()
+        kernel_enter!("sys_get_processor_frequency");
+        let frequency = arch::processor::get_frequency();
+        kernel_exit!("sys_get_processor_frequency");
+        frequency
 }

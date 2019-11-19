@@ -8,6 +8,7 @@
 use arch;
 use errno::*;
 use syscalls::sys_usleep;
+use mm;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -48,6 +49,7 @@ fn microseconds_to_timeval(microseconds: u64, result: &mut timeval) {
 
 #[no_mangle]
 pub extern "C" fn sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
+	kernel_enter!("sys_clock_getres");
 	assert!(
 		!res.is_null(),
 		"sys_clock_getres called with a zero res parameter"
@@ -58,10 +60,12 @@ pub extern "C" fn sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
 		CLOCK_REALTIME | CLOCK_PROCESS_CPUTIME_ID | CLOCK_THREAD_CPUTIME_ID | CLOCK_MONOTONIC => {
 			// All clocks in HermitCore have 1 microsecond resolution.
 			microseconds_to_timespec(1, result);
+			kernel_exit!("sys_clock_getres");
 			0
 		}
 		_ => {
 			debug!("Called sys_clock_getres for unsupported clock {}", clock_id);
+			kernel_exit!("sys_clock_getres");
 			-EINVAL
 		}
 	}
@@ -69,6 +73,7 @@ pub extern "C" fn sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
+	kernel_enter!("sys_clock_gettime");
 	assert!(
 		!tp.is_null(),
 		"sys_clock_gettime called with a zero tp parameter"
@@ -84,6 +89,7 @@ pub extern "C" fn sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 			}
 
 			microseconds_to_timespec(microseconds, result);
+			kernel_exit!("sys_clock_gettime");
 			0
 		}
 		_ => {
@@ -91,6 +97,7 @@ pub extern "C" fn sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 				"Called sys_clock_gettime for unsupported clock {}",
 				clock_id
 			);
+			kernel_exit!("sys_clock_gettime");
 			-EINVAL
 		}
 	}
@@ -103,6 +110,7 @@ pub extern "C" fn sys_clock_nanosleep(
 	rqtp: *const timespec,
 	_rmtp: *mut timespec,
 ) -> i32 {
+	kernel_enter!("sys_clock_nanosleep");
 	assert!(
 		!rqtp.is_null(),
 		"sys_clock_nanosleep called with a zero rqtp parameter"
@@ -128,11 +136,14 @@ pub extern "C" fn sys_clock_nanosleep(
 					microseconds -= arch::get_boot_time();
 				}
 			}
-
+			kernel_exit!("sys_clock_nanosleep");
 			sys_usleep(microseconds);
 			0
 		}
-		_ => -EINVAL,
+		_ => {
+			kernel_exit!("sys_clock_nanosleep");
+			-EINVAL
+		}
 	}
 }
 
@@ -145,6 +156,7 @@ pub extern "C" fn sys_clock_settime(_clock_id: u64, _tp: *const timespec) -> i32
 
 #[no_mangle]
 pub extern "C" fn sys_gettimeofday(tp: *mut timeval, tz: usize) -> i32 {
+	kernel_enter!("sys_gettimeofday");
 	if let Some(result) = unsafe { tp.as_mut() } {
 		// Return the current time based on the wallclock time when we were booted up
 		// plus the current timer ticks.
@@ -154,8 +166,10 @@ pub extern "C" fn sys_gettimeofday(tp: *mut timeval, tz: usize) -> i32 {
 
 	if tz > 0 {
 		debug!("The tz parameter in sys_gettimeofday is unimplemented, returning -EINVAL");
+		kernel_exit!("sys_gettimeofday");
 		return -EINVAL;
 	}
+	kernel_exit!("sys_gettimeofday");
 
 	0
 }

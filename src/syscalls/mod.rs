@@ -37,7 +37,7 @@ use syscalls::interfaces::SyscallInterface;
 const LWIP_FD_BIT: i32 = (1 << 30);
 
 #[cfg(feature = "newlib")]
-pub static LWIP_LOCK: SpinlockIrqSave<()> = SpinlockIrqSave::new(());
+safe_global_var!(pub static LWIP_LOCK: SpinlockIrqSave<()> = SpinlockIrqSave::new(()));
 
 static mut SYS: &'static dyn SyscallInterface = &interfaces::Generic;
 
