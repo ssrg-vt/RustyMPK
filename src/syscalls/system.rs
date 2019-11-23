@@ -22,12 +22,17 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use arch;
-use mm;
+//use mm;
+
+#[no_mangle]
+fn __sys_getpagesize() -> i32 {
+	arch::mm::paging::get_application_page_size() as i32
+}
 
 #[no_mangle]
 pub extern "C" fn sys_getpagesize() -> i32 {
-	kernel_enter!("sys_getpagesize");
-	let page_size = arch::mm::paging::get_application_page_size() as i32;
-	kernel_exit!("sys_getpagesize");
-	page_size
+	//kernel_enter!("sys_getpagesize");
+	let ret = kernel_function!(__sys_getpagesize());
+	//kernel_exit!("sys_getpagesize");
+	return ret;
 }

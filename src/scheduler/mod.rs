@@ -71,6 +71,7 @@ impl PerCoreScheduler {
 			TaskStatus::TaskReady,
 			prio,
 		)));
+		info!("Creating task {}", tid);
 		task.borrow_mut().create_stack_frame(func, arg);
 
 		// Add it to the task lists.
@@ -140,6 +141,10 @@ impl PerCoreScheduler {
 			core_id,
 			&current_task_borrowed,
 		)));
+		info!(
+			"Creating task {} on core {} by cloning task {}",
+			tid, core_id, current_task_borrowed.id
+		);
 		clone_task.borrow_mut().create_stack_frame(func, arg);
 
 		// Add it to the task lists.
@@ -203,11 +208,13 @@ impl PerCoreScheduler {
 		self.cleanup_tasks();
 
 		// Get information about the current task.
-		let (id, last_stack_pointer, prio, status) = {
+		let (id, last_stack_pointer, kernel_stack_pointer, user_stack_pointer, prio, status) = {
 			let mut borrowed = self.current_task.borrow_mut();
 			(
 				borrowed.id,
 				&mut borrowed.last_stack_pointer as *mut usize,
+				&mut borrowed.kernel_stack_pointer as *mut usize,
+				&mut borrowed.user_stack_pointer as *mut usize,
 				borrowed.prio,
 				borrowed.status,
 			)
@@ -270,23 +277,28 @@ impl PerCoreScheduler {
 			}
 
 			// Handle the new task and get information about it.
-			let (new_id, new_stack_pointer) = {
+			let (new_id, new_stack_pointer, new_kernel_stack_pointer, new_user_stack_pointer) = 
+			{
 				let mut borrowed = task.borrow_mut();
 				if borrowed.status != TaskStatus::TaskIdle {
 					// Mark the new task as running.
 					borrowed.status = TaskStatus::TaskRunning;
 				}
 
-				(borrowed.id, borrowed.last_stack_pointer)
+				(borrowed.id, borrowed.last_stack_pointer, borrowed.kernel_stack_pointer, borrowed.user_stack_pointer)
 			};
 
 			// Tell the scheduler about the new task.
-			trace!(
-				"Switching task from {} to {} (stack {:#X} => {:#X})",
+			error!(
+				"Switching task from {} to {} (kernel stack {:#x} => {:#x}) (kernel sp {:#x} => {:#x}) (user sp {:#x} => {:#x})",
 				id,
 				new_id,
-				unsafe { *last_stack_pointer },
-				new_stack_pointer
+				unsafe { *last_stack_pointer},
+				new_stack_pointer,
+				unsafe { *kernel_stack_pointer },
+				new_kernel_stack_pointer,
+				unsafe { *user_stack_pointer },
+				new_user_stack_pointer
 			);
 			self.current_task = task;
 			self.last_task_switch_tick = arch::processor::get_timer_ticks();

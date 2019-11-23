@@ -122,8 +122,45 @@ macro_rules! unsafe_global_var {
     };
 }
 
-macro_rules! kernel_enter {
+macro_rules! user_start {
 	($e:expr) => {
+		let user_stack_pointer = core_scheduler().current_task.borrow().user_stack_pointer;
+		let kernel_stack_pointer;
+		#[allow(unused)]
+		unsafe {
+			// Store the kernel stack pointer and switch to the user stack
+
+			asm!("mov %rsp, $0"
+				: "=r"(kernel_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
+
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(user_stack_pointer)
+				: "rsp"
+				: "volatile");
+
+			if $e {
+				asm!("mov $$0xfc, %eax;
+					  xor %ecx, %ecx;
+					  xor %edx, %edx;
+					  wrpkru;
+					  lfence"
+					:
+					:
+					: "eax", "ecx", "edx"
+					: "volatile");
+			}
+		}
+	};
+}
+
+macro_rules! user_end {
+	() => {
+		// And finally start the application.
 		#[allow(unused)]
 		unsafe {
 			asm!("xor %eax, %eax;
@@ -136,52 +173,278 @@ macro_rules! kernel_enter {
 				: "eax", "ecx", "edx"
 				: "volatile");
 
-			use x86_64::kernel::percore::core_scheduler;
-			let current_kernel_stack = core_scheduler().current_task.borrow().stacks.current_kernel_stack;
-			let current_user_stack: usize;
-			
-			asm!("mov %rsp, $0;
-				  mov $1, %rsp"
-				: "=r"(current_user_stack)
-				: "r"(current_kernel_stack)
+			let kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
+
+			//let user_stack_pointer;
+			// Store the kernel stack pointer and switch to the user stack
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(kernel_stack_pointer)
+				: "rsp"
+				: "volatile");
+		}
+	}
+}
+
+macro_rules! print_kernel_stack_pointer {
+	() => {
+		#[allow(unused)]
+		unsafe {
+			let mut kernel_stack_pointer: usize = 0;
+			asm!("mov %rsp, $0"
+				: "=r"(kernel_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+			info!("print kernel stack pointer: {:#X}", kernel_stack_pointer);
+		}
+	}
+}
+
+macro_rules! kernel_enter {
+	($e:expr) => {
+		use x86_64::kernel::percore::core_scheduler;
+		let kernel_stack_pointer: usize; 
+		let user_stack_pointer: usize;
+
+		#[allow(unused)]
+		unsafe {
+			asm!("xor %eax, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				:
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+
+			asm!("mov %rsp, $0"
+				: "=r"(user_stack_pointer)
+				: 
 				: "rsp"
 				: "volatile");
 
-			core_scheduler().current_task.borrow_mut().stacks.current_user_stack = current_user_stack;
-
-			//println!("enter: {}\\", $e);
+			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
+			// Switch to kernel stack
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(kernel_stack_pointer)
+				: "rsp"
+				: "volatile");
+			
+			core_scheduler().current_task.borrow_mut().user_stack_pointer = user_stack_pointer;
+			//println!("=========enter : {}\\", $e);
 		}
 	};
 }
 
 macro_rules! kernel_exit {
 	($e:expr) => {
-		//println!("exit : {}/", $e);
-		use x86_64::kernel::percore::core_scheduler;
-		let current_user_stack = core_scheduler().current_task.borrow().stacks.current_user_stack;
-		let current_kernel_stack: usize;
+		let user_stack_pointer = core_scheduler().current_task.borrow().user_stack_pointer;
+		let kernel_stack_pointer: usize;
+
 		#[allow(unused)]
 		unsafe {
-			asm!("mov %rsp, $0;
-				  mov $1, %rsp"
-				: "=r"(current_kernel_stack)
-				: "r"(current_user_stack)
+			asm!("mov %rsp, $0"
+				: "=r"(kernel_stack_pointer)
+				:
 				: "rsp"
 				: "volatile");
-		
-			core_scheduler().current_task.borrow_mut().stacks.current_kernel_stack = current_kernel_stack;
+			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
 
-			asm!("mov $$0xffc, %eax;
-					xor %ecx, %ecx;
-					xor %edx, %edx;
-					wrpkru;
-					lfence"
+			// Switch to user stack
+			asm!("mov $0, %rsp"
+			  : 
+			  : "r"(user_stack_pointer)
+			  : "rsp"
+			  : "volatile");
+
+			//println!("=========exit : {}/", $e);
+
+			asm!("mov $$0xfc, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
 				:
 				:
 				: "eax", "ecx", "edx"
 				: "volatile");
 		}
 	};
+}
+
+macro_rules! kernel_function {
+	($f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		let mut kernel_stack_pointer: usize;
+		let mut user_stack_pointer: usize;
+		//let mut rsp:usize;
+		//let tid: u32;
+		#[allow(unused)]
+		unsafe {
+			// switch permission
+			asm!("xor %eax, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				: 
+				: "eax", "ecx", "edx"
+				: "volatile");
+			
+			let tid = core_scheduler().current_task.borrow().id.into();
+/*
+		asm!("mov %rsp, $0"
+		: "=r"(rsp)
+		:
+		: "rsp"
+		: "volatile");	
+*/		
+			//println!("[0] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
+	
+			// Save user stack pointer and 
+			// switch stack to the kernel stack
+			asm!("mov %rsp, $0"
+				: "=r"(user_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+
+			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(kernel_stack_pointer)
+				: "rsp"
+				: "volatile");
+/*
+		asm!("mov %rsp, $0"
+			: "=r"(rsp)
+			:
+			: "rsp"
+			: "volatile");	
+*/		
+			//println!("[1] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
+
+			//println!("[{}]enter: {}\\", tid, stringify!($f));
+			let temp_ret = $f($($x)*);
+			//println!("[{}]exit : {}/", tid, stringify!($f));
+		
+/*		
+		asm!("mov %rsp, $0"
+			: "=r"(rsp)
+			:
+			: "rsp"
+			: "volatile");
+*/
+			//println!("[2] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
+
+			// Save kernel stack pinter and
+			// swiatch back to the user stack
+			asm!("mov %rsp, $0"
+				: "=r"(kernel_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
+
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(user_stack_pointer)
+				: "rsp"
+				: "volatile");
+/*
+		asm!("mov %rsp, $0"
+			: "=r"(rsp)
+			:
+			: "rsp"
+			: "volatile");
+*/	
+			//println!("tid {}, kernel: {:#x} user: {:#x}", tid, kernel_stack_pointer, user_stack_pointer);
+
+			asm!("mov $$0xfc, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+
+			temp_ret
+		}
+	}};
+
+	($p:tt.$f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+		let mut kernel_stack_pointer: usize;
+		let mut user_stack_pointer: usize;
+		#[allow(unused)]
+		unsafe {
+			// switch permission
+			asm!("xor %eax, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				: 
+				: "eax", "ecx", "edx"
+				: "volatile");
+			
+			let tid = core_scheduler().current_task.borrow().id.into();
+
+			// Save user stack pointer and 
+			// switch stack to the kernel stack
+			asm!("mov %rsp, $0"
+				: "=r"(user_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+
+			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(kernel_stack_pointer)
+				: "rsp"
+				: "volatile");
+
+			println!("[{}]enter: {}\\", tid, stringify!($f));
+			let temp_ret = $p.$f($($x)*);
+			println!("[{}]exit : {}/", tid, stringify!($f));
+		
+			// Save kernel stack pinter and
+			// swiatch back to the user stack
+			asm!("mov %rsp, $0"
+				: "=r"(kernel_stack_pointer)
+				:
+				: "rsp"
+				: "volatile");
+			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
+
+			asm!("mov $0, %rsp"
+				: 
+				: "r"(user_stack_pointer)
+				: "rsp"
+				: "volatile");
+
+			asm!("mov $$0xfc, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+
+			temp_ret
+			
+		}
+	}};
 }
 
 macro_rules! isolation_start {

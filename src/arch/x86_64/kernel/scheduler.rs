@@ -75,43 +75,44 @@ pub struct TaskStacks {
 	pub isolated_stack: usize,
 	/// User stack
 	pub user_stack: usize,
-	/// Temperary kernel,user stack pointers
-	pub current_kernel_stack: usize,
-	pub current_user_stack: usize,
+
+	//pub current_kernel_stack: usize,
+	//pub current_user_stack: usize,
 }
 
 impl TaskStacks {
 	pub fn new() -> Self {
 		// Allocate an executable stack to possibly support dynamically generated code on the stack (see https://security.stackexchange.com/a/47825).
-		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, false);
-		//info!("Allocating stack {:#X}, size: {}", stack, DEFAULT_STACK_SIZE);
+		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, true);
+		info!("Allocating stack {:#X} ~ {:#X}", stack, stack + DEFAULT_STACK_SIZE);
 
-		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, false);
-		//info!("Allocating isolated_stack {:#X}, size: {}", isolated_stack, DEFAULT_STACK_SIZE);
+		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, true);
+		info!("Allocating isolated_stack {:#X} ~ {:#X}", isolated_stack, isolated_stack + DEFAULT_STACK_SIZE);
 
-		let user_stack = ::mm::user_allocate(USER_STACK_SIZE, false);
+		let user_stack = ::mm::user_allocate(DEFAULT_STACK_SIZE, true);
+		info!("Allocating user_stack {:#X} ~ {:#X}", user_stack, user_stack + DEFAULT_STACK_SIZE);
 
 		Self {
 			is_boot_stack: false,
 			stack: stack,
 			isolated_stack: isolated_stack,
 			user_stack: user_stack,
-			current_kernel_stack: 0x0usize,
-			current_user_stack: 0x0usize,
+			//current_kernel_stack: 0xaaaabeefusize,
+			//current_user_stack: user_stack + DEFAULT_STACK_SIZE,
 		}
 	}
 
 	pub fn from_boot_stacks() -> Self {
 		let stack = gdt::get_boot_stacks();
-		debug!("Using boot stack {:#X}", stack);
+		info!("Using boot stack {:#X}", stack);
 
 		Self {
 			is_boot_stack: true,
 			stack: stack,
-			isolated_stack: 0x0usize,
-			user_stack: 0x0usize,
-			current_kernel_stack: 0x0usize,
-			current_user_stack: 0x0usize,
+			isolated_stack: 0usize,
+			user_stack: 0usize,
+			//current_kernel_stack: 0xeeeebeefusize,
+			//current_user_stack: 0xffffbeefusize,
 		}
 	}
 }
@@ -127,7 +128,7 @@ impl Drop for TaskStacks {
 
 			::mm::deallocate(self.isolated_stack, DEFAULT_STACK_SIZE);
 
-			::mm::deallocate(self.user_stack, USER_STACK_SIZE);
+			::mm::deallocate(self.user_stack, DEFAULT_STACK_SIZE);
 		}
 	}
 }
@@ -190,8 +191,15 @@ extern "C" fn task_entry(func: extern "C" fn(usize), arg: usize) {
 		current_task_borrowed.tls = Some(Rc::new(RefCell::new(tls)));
 	}
 
-	// Call the actual entry point of the task.
-	func(arg);
+	//info!("Task_entry of {}", core_scheduler().current_task.borrow().id.into());
+	if core_scheduler().current_task.borrow().id.into() >= 2 {
+		user_start!(false);
+		func(arg);
+		user_end!();
+	} else {
+		// Call the actual entry point of the task.
+		func(arg);
+	}
 }
 
 impl TaskFrame for Task {
@@ -226,6 +234,7 @@ impl TaskFrame for Task {
 
 			// Set the task's stack pointer entry to the stack we have just crafted.
 			self.last_stack_pointer = stack as usize;
+			self.user_stack_pointer = self.stacks.user_stack as usize + DEFAULT_STACK_SIZE;
 		}
 		//set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SAFE_MEM_REGION);
 	}

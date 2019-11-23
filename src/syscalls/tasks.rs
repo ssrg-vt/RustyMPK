@@ -17,35 +17,45 @@ use scheduler;
 use scheduler::task::{Priority, TaskId};
 use syscalls;
 use syscalls::timer::timespec;
-use mm;
+//use mm;
 
 #[cfg(feature = "newlib")]
 pub type SignalHandler = extern "C" fn(i32);
 pub type Tid = u32;
 
 #[no_mangle]
-pub extern "C" fn sys_getpid() -> Tid {
-	kernel_enter!("sys_getpid");
+fn __sys_getpid() -> Tid {
 	let current_task_borrowed = core_scheduler().current_task.borrow();
-	let tid = current_task_borrowed.id.into() as Tid;
-	kernel_exit!("sys_getpid");
-	tid
+	current_task_borrowed.id.into() as Tid
+}
+
+#[no_mangle]
+pub extern "C" fn sys_getpid() -> Tid {
+	//kernel_enter!("sys_getpid");
+	let ret = kernel_function!(__sys_getpid());
+	//kernel_exit!("sys_getpid");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_getprio(id: *const Tid) -> i32 {
+	let current_task_borrowed = core_scheduler().current_task.borrow();
+
+	if id.is_null() || unsafe { *id } == current_task_borrowed.id.into() as u32 {
+		i32::from(current_task_borrowed.prio.into())
+	} else {
+		-EINVAL
+	}
 }
 
 #[no_mangle]
 pub extern "C" fn sys_getprio(id: *const Tid) -> i32 {
-	kernel_enter!("sys_getprio");
-	let current_task_borrowed = core_scheduler().current_task.borrow();
-
-	if id.is_null() || unsafe { *id } == current_task_borrowed.id.into() as u32 {
-		let prio = i32::from(current_task_borrowed.prio.into());
-		kernel_exit!("sys_getprio");
-		prio
-	} else {
-		kernel_exit!("sys_getprio");
-		-EINVAL
-	}
+	//kernel_enter!("sys_getprio");
+	let ret = kernel_function!(__sys_getprio(id));
+	//kernel_exit!("sys_getprio");
+	return ret;
 }
+
 
 #[no_mangle]
 pub extern "C" fn sys_setprio(_id: *const Tid, _prio: i32) -> i32 {
@@ -54,14 +64,15 @@ pub extern "C" fn sys_setprio(_id: *const Tid, _prio: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_exit(arg: i32) -> ! {
-	debug!("Exit program with error code {}!", arg);
+	kernel_enter!("sys_thread_exit");
+	//debug!("Exit program with error code {}!", arg);
 	syscalls::sys_shutdown(arg);
 }
 
 #[no_mangle]
 pub extern "C" fn sys_thread_exit(arg: i32) -> ! {
-	debug!("Exit thread with error code {}!", arg);
-    kernel_enter!("sys_thread_exit");
+	kernel_enter!("sys_thread_exit");
+	//debug!("Exit thread with error code {}!", arg);
 	core_scheduler().exit(arg);
 }
 
@@ -80,8 +91,7 @@ pub fn sbrk_init() {
 
 #[cfg(feature = "newlib")]
 #[no_mangle]
-pub extern "C" fn sys_sbrk(incr: isize) -> usize {
-	kernel_enter!("sys_sbrk");
+fn __sys_sbrk(incr: isize) -> usize {
 	// Get the boundaries of the task heap and verify that they are suitable for sbrk.
 	let task_heap_start = task_heap_start();
 	let task_heap_end = task_heap_end();
@@ -94,13 +104,20 @@ pub extern "C" fn sys_sbrk(incr: isize) -> usize {
 		old_end = SBRK_COUNTER.fetch_sub(incr.abs() as usize, Ordering::SeqCst);
 		assert!(task_heap_start < old_end - incr.abs() as usize);
 	}
-	kernel_exit!("sys_sbrk");
 	old_end
 }
 
+#[cfg(feature = "newlib")]
 #[no_mangle]
-pub extern "C" fn sys_usleep(usecs: u64) {
-	kernel_enter!("sys_usleep");
+pub extern "C" fn sys_sbrk(incr: isize) -> usize {
+	//kernel_enter!("sys_sbrk");
+	let ret = kernel_function!(__sys_sbrk(incr));
+	//kernel_exit!("sys_sbrk");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_usleep(usecs: u64) {
 	if usecs > (scheduler::TASK_TIME_SLICE as u64) {
 		// Enough time to set a wakeup timer and block the current task.
 		debug!("sys_usleep blocking the task for {} microseconds", usecs);
@@ -118,7 +135,13 @@ pub extern "C" fn sys_usleep(usecs: u64) {
 		// Not enough time to set a wakeup timer, so just do busy-waiting.
 		arch::processor::udelay(usecs);
 	}
-	kernel_exit!("sys_usleep");
+}
+
+#[no_mangle]
+pub extern "C" fn sys_usleep(usecs: u64) {
+	//kernel_enter!("sys_usleep");
+	kernel_function!(__sys_usleep(usecs));
+	//kernel_exit!("sys_usleep");
 }
 
 #[no_mangle]
@@ -150,8 +173,7 @@ pub extern "C" fn sys_nanosleep(rqtp: *const timespec, _rmtp: *mut timespec) -> 
 
 #[cfg(feature = "newlib")]
 #[no_mangle]
-pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
-	kernel_enter!("sys_clone");
+fn __sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
 	let task_id = core_scheduler().clone(func, arg);
 
 	if !id.is_null() {
@@ -159,8 +181,17 @@ pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize
 			*id = task_id.into() as u32;
 		}
 	}
-	kernel_exit!("sys_clone");
+
 	0
+}
+
+#[cfg(feature = "newlib")]
+#[no_mangle]
+pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
+	//kernel_enter!("sys_clone");
+	let ret = kernel_function!(__sys_clone(id, func, arg));
+	//kernel_exit!("sys_clone");
+	return ret;
 }
 
 #[no_mangle]
@@ -188,14 +219,13 @@ pub extern "C" fn sys_signal(_handler: SignalHandler) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn sys_spawn(
+fn __sys_spawn(
 	id: *mut Tid,
 	func: extern "C" fn(usize),
 	arg: usize,
 	prio: u8,
 	selector: isize,
 ) -> i32 {
-	kernel_enter!("sys_spawn");
 	safe_global_var!(static CORE_COUNTER: AtomicUsize = AtomicUsize::new(0));
 
 	let core_id = if selector < 0 {
@@ -213,14 +243,36 @@ pub extern "C" fn sys_spawn(
 			*id = task_id.into() as u32;
 		}
 	}
-	kernel_exit!("sys_spawn");
+
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn sys_join(id: Tid) -> i32 { /* FIXME, kernel_exit!("") not working! */
+pub extern "C" fn sys_spawn(
+	id: *mut Tid,
+	func: extern "C" fn(usize),
+	arg: usize,
+	prio: u8,
+	selector: isize,
+) -> i32 {
+	//kernel_enter!("sys_spawn");
+	let ret = kernel_function!(__sys_spawn(id, func, arg, prio, selector));
+	//kernel_exit!("sys_spawn");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_join(id: Tid) -> i32 {
 	match scheduler::join(TaskId::from(id)) {
 		Ok(()) => 0,
 		_ => -EINVAL,
 	}
+}
+
+#[no_mangle]
+pub extern "C" fn sys_join(id: Tid) -> i32 {
+	//kernel_enter!("sys_join");
+	let ret = kernel_function!(__sys_join(id));
+	//kernel_exit!("sys_join");
+	return ret;
 }

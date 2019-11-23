@@ -205,19 +205,13 @@ extern "C" fn initd(_arg: usize) {
 	core_scheduler().scheduler();
 
 	unsafe {
-		// And finally start the application.
-		let current_user_stack = core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE;
-		info!("user_stack:{:#X} ~ {:#X}", current_user_stack - DEFAULT_STACK_SIZE, current_user_stack);
-		let current_kernel_stack;
+		use arch::x86_64::mm::paging::*;
+		print_page_table_entry::<LargePageSize>(0x0);
 
-		// Store the kernel stack pointer and switch to the user stack
-		asm!("mov %rsp, $0;
-			  mov $1, %rsp"
-		: "=r"(current_kernel_stack)
-		: "r"(current_user_stack)
-		: "rsp"
-		: "volatile");
-		core_scheduler().current_task.borrow_mut().stacks.current_kernel_stack = current_kernel_stack;
+		info!("safe_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.stack, core_scheduler().current_task.borrow().stacks.stack + DEFAULT_STACK_SIZE);
+		info!("unsafe_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.isolated_stack, core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE);
+		info!("user_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.user_stack, core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE);
+		user_start!(false);
 
 		runtime_entry(argc, argv, environ);
 	}

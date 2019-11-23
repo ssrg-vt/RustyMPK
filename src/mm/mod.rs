@@ -105,7 +105,7 @@ pub fn init() {
 	arch::mm::init();
 	arch::mm::init_page_tables();    
 	/* Protect the first page containing BIOS, boot loader data */
-	arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, SAFE_MEM_REGION);
+	//arch::mm::paging::set_pkey_on_page_table_entry::<LargePageSize>(0x0, 1, SAFE_MEM_REGION); /*FIXME */
 
 	info!("Total memory size: {} MB", total_memory_size() >> 20);
 

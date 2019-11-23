@@ -9,14 +9,12 @@ use alloc::boxed::Box;
 use arch;
 use errno::*;
 use synch::semaphore::Semaphore;
-use mm;
+//use mm;
 
 #[no_mangle]
-pub extern "C" fn sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
-	kernel_enter!("sys_sem_init");
+fn __sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
 	//println!("sys_sem_init, sem: {:#X}", sem as usize);
 	if sem.is_null() {
-		kernel_exit!("sys_sem_init");
 		return -EINVAL;
 	}
 
@@ -25,15 +23,20 @@ pub extern "C" fn sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
 	unsafe {
 		*sem = Box::into_raw(boxed_semaphore);
 	}
-	kernel_exit!("sys_sem_init");
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn sys_sem_destroy(sem: *mut Semaphore) -> i32 {
-	kernel_enter!("sys_sem_destroy");
+pub extern "C" fn sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
+	//kernel_enter!("sys_sem_init");
+	let ret = kernel_function!(__sys_sem_init(sem, value));
+	//kernel_exit!("sys_sem_init");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_sem_destroy(sem: *mut Semaphore) -> i32 {
 	if sem.is_null() {
-		kernel_exit!("sys_sem_destroy");
 		return -EINVAL;
 	}
 
@@ -42,50 +45,64 @@ pub extern "C" fn sys_sem_destroy(sem: *mut Semaphore) -> i32 {
 	unsafe {
 		Box::from_raw(sem);
 	}
-	kernel_exit!("sys_sem_destroy");
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn sys_sem_post(sem: *const Semaphore) -> i32 {
-	kernel_enter!("sys_sem_post");
+pub extern "C" fn sys_sem_destroy(sem: *mut Semaphore) -> i32 {
+	//kernel_enter!("sys_sem_destroy");
+	let ret = kernel_function!(__sys_sem_destroy(sem: *mut Semaphore));
+	//kernel_exit!("sys_sem_destroy");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_sem_post(sem: *const Semaphore) -> i32 {
 	if sem.is_null() {
-		kernel_exit!("sys_sem_post");
 		return -EINVAL;
 	}
 
 	// Get a reference to the given semaphore and release it.
 	let semaphore = unsafe { &*sem };
 	semaphore.release();
-	kernel_exit!("sys_sem_post");
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn sys_sem_trywait(sem: *const Semaphore) -> i32 {
-	kernel_enter!("sys_sem_trywait");
+pub extern "C" fn sys_sem_post(sem: *const Semaphore) -> i32 {
+	//kernel_enter!("sys_sem_post");
+	let ret = kernel_function!(__sys_sem_post(sem: *const Semaphore));
+	//kernel_exit!("sys_sem_post");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_sem_trywait(sem: *const Semaphore) -> i32 {
 	if sem.is_null() {
-		kernel_exit!("sys_sem_trywait");
 		return -EINVAL;
 	}
 
 	// Get a reference to the given semaphore and acquire it in a non-blocking fashion.
 	let semaphore = unsafe { &*sem };
 	if semaphore.try_acquire() {
-		kernel_exit!("sys_sem_trywait");
 		0
 	} else {
-		kernel_exit!("sys_sem_trywait");
 		-ECANCELED
 	}
 }
 
 #[no_mangle]
-pub extern "C" fn sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
-	kernel_enter!("sys_sem_timedwait");
+pub extern "C" fn sys_sem_trywait(sem: *const Semaphore) -> i32 {
+	//kernel_enter!("sys_sem_trywait");
+	let ret = kernel_function!(__sys_sem_trywait(sem));
+	//kernel_exit!("sys_sem_trywait");
+	return ret;
+}
+
+#[no_mangle]
+fn __sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
 	//println!("sys_sem_timedwait, sem: {:#X}", sem as usize);
 	if sem.is_null() {
-		kernel_exit!("sys_sem_timedwait1");
 		return -EINVAL;
 	}
 
@@ -99,12 +116,17 @@ pub extern "C" fn sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
 	// Get a reference to the given semaphore and wait until we have acquired it or the wakeup time has elapsed.
 	let semaphore = unsafe { &*sem };
 	if semaphore.acquire(wakeup_time) {
-		kernel_exit!("sys_sem_timedwait2");
 		0
 	} else {
-		kernel_exit!("sys_sem_timedwait3");
 		-ETIME
 	}
+}
+
+#[no_mangle]
+pub extern "C" fn sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
+	//kernel_enter!("sys_sem_timedwait");
+	return kernel_function!(__sys_sem_timedwait(sem, ms));
+	//kernel_exit!("sys_sem_timedwait");
 }
 
 #[no_mangle]
