@@ -71,7 +71,6 @@ impl PerCoreScheduler {
 			TaskStatus::TaskReady,
 			prio,
 		)));
-		info!("Creating task {}", tid);
 		task.borrow_mut().create_stack_frame(func, arg);
 
 		// Add it to the task lists.
@@ -141,10 +140,6 @@ impl PerCoreScheduler {
 			core_id,
 			&current_task_borrowed,
 		)));
-		info!(
-			"Creating task {} on core {} by cloning task {}",
-			tid, core_id, current_task_borrowed.id
-		);
 		clone_task.borrow_mut().create_stack_frame(func, arg);
 
 		// Add it to the task lists.
@@ -289,7 +284,7 @@ impl PerCoreScheduler {
 			};
 
 			// Tell the scheduler about the new task.
-			error!(
+			debug!(
 				"Switching task from {} to {} (kernel stack {:#x} => {:#x}) (kernel sp {:#x} => {:#x}) (user sp {:#x} => {:#x})",
 				id,
 				new_id,

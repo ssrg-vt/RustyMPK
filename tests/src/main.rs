@@ -28,10 +28,6 @@ fn main() {
 		    : "volatile");
 		println!("PKRU val in main(): {:#X}", val);
 	}
-	/*
-	let addr = 0x3CFB000 as *mut usize;
-	unsafe {*addr = 0xDEAD_DEAD;}
-	*/
 	println!("Test {} ... {}", stringify!(hello), test_result(hello()));
 /*
         println!(
@@ -44,7 +40,7 @@ fn main() {
             let p_addr: *mut u64 = addr as *mut u64;
             println!("p: {}", *p_addr);
         }
-*/
+
 	println!(
 		"Test {} ... {}",
 		stringify!(print_argv),
@@ -55,7 +51,7 @@ fn main() {
 		stringify!(print_env),
 		test_result(print_env())
 	);
-        /*
+
 	println!(
 		"Test {} ... {}",
 		stringify!(read_file),
@@ -66,18 +62,18 @@ fn main() {
 		stringify!(create_file),
 		test_result(create_file())
 	);
-	println!(
+*/
+        println!(
 		"Test {} ... {}",
 		stringify!(threading),
-		test_result(threading())
+                test_result(threading())
 	);
-	*/
+
 	println!(
 		"Test {} ... {}",
 		stringify!(pi_sequential),
-		test_result(pi_sequential(5000000))
+		test_result(pi_sequential(1000000))
 	);
-	/*
 	println!(
 		"Test {} ... {}",
 		stringify!(pi_parallel),
@@ -89,20 +85,19 @@ fn main() {
 		stringify!(laplace),
 		test_result(laplace(128, 128))
 	);
-	*/
 
 	println!(
 		"Test {} ... {}",
 		stringify!(test_matmul_strassen),
 		test_result(test_matmul_strassen())
 	);
-	/*
+
 	println!(
 		"Test {} ... {}",
 		stringify!(thread_creation),
 		test_result(thread_creation())
 	);
-	*/
+
 	println!(
 		"Test {} ... {}",
 		stringify!(bench_sched_one_thread),
