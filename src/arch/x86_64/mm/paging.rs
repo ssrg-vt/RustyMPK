@@ -774,15 +774,14 @@ pub fn virtual_to_physical(virtual_address: usize) -> usize {
 	let mut page_bits: usize = 39;
 
 	// A self-reference enables direct access to all page tables
-	//#[link_section = ".safe_data"]
-	static SELF: [usize; 4] = { /* FIXME */
+	safe_global_var!(static SELF: [usize; 4] = {
 		[
 			0xFFFFFF8000000000usize,
 			0xFFFFFFFFC0000000usize,
 			0xFFFFFFFFFFE00000usize,
 			0xFFFFFFFFFFFFF000usize,
 		]
-	};
+	});
 
 	for i in (0..3).rev() {
 		page_bits = page_bits - PAGE_MAP_BITS;

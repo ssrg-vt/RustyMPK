@@ -39,7 +39,7 @@ const LWIP_FD_BIT: i32 = (1 << 30);
 #[cfg(feature = "newlib")]
 safe_global_var!(pub static LWIP_LOCK: SpinlockIrqSave<()> = SpinlockIrqSave::new(()));
 
-static mut SYS: &'static dyn SyscallInterface = &interfaces::Generic;
+safe_global_var!(static mut SYS: &'static dyn SyscallInterface = &interfaces::Generic);
 
 pub fn init() {
 	unsafe {
@@ -66,40 +66,40 @@ pub fn get_application_parameters() -> (i32, *const *const u8, *const *const u8)
 
 #[no_mangle]
 pub extern "C" fn sys_shutdown(arg: i32) -> ! {
-	unsafe { SYS.shutdown(arg) }
+	unsafe { kernel_function!(SYS.shutdown(arg)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_unlink(name: *const u8) -> i32 {
-	unsafe { SYS.unlink(name) }
+	unsafe { kernel_function!(SYS.unlink(name)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_open(name: *const u8, flags: i32, mode: i32) -> i32 {
-	unsafe { SYS.open(name, flags, mode) }
+	unsafe { kernel_function!(SYS.open(name, flags, mode)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_close(fd: i32) -> i32 {
-	unsafe { SYS.close(fd) }
+	unsafe { kernel_function!(SYS.close(fd)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_read(fd: i32, buf: *mut u8, len: usize) -> isize {
-	unsafe { SYS.read(fd, buf, len) }
+	unsafe { kernel_function!(SYS.read(fd, buf, len)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_write(fd: i32, buf: *const u8, len: usize) -> isize {
-	unsafe { SYS.write(fd, buf, len) }
+	unsafe { kernel_function!(SYS.write(fd, buf, len)) }
 }
 
 #[no_mangle]
 pub extern "C" fn sys_lseek(fd: i32, offset: isize, whence: i32) -> isize {
-	unsafe { SYS.lseek(fd, offset, whence) }
+	unsafe { kernel_function!(SYS.lseek(fd, offset, whence)) }
 }
 
 #[no_mangle]
-pub extern "C" fn sys_stat(file: *const u8, st: usize) -> i32 {
-	unsafe { SYS.stat(file, st) }
+pub extern "C" fn sys_stan(file: *const u8, st: usize) -> i32 {
+	unsafe { kernel_function!(SYS.stat(file, st)) }
 }

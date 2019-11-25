@@ -280,8 +280,6 @@ macro_rules! kernel_function {
 		use x86_64::kernel::percore::core_scheduler;
 		let mut kernel_stack_pointer: usize;
 		let mut user_stack_pointer: usize;
-		//let mut rsp:usize;
-		//let tid: u32;
 		#[allow(unused)]
 		unsafe {
 			// switch permission
@@ -296,14 +294,6 @@ macro_rules! kernel_function {
 				: "volatile");
 			
 			let tid = core_scheduler().current_task.borrow().id.into();
-/*
-		asm!("mov %rsp, $0"
-		: "=r"(rsp)
-		:
-		: "rsp"
-		: "volatile");	
-*/		
-			//println!("[0] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
 	
 			// Save user stack pointer and 
 			// switch stack to the kernel stack
@@ -319,27 +309,10 @@ macro_rules! kernel_function {
 				: "r"(kernel_stack_pointer)
 				: "rsp"
 				: "volatile");
-/*
-		asm!("mov %rsp, $0"
-			: "=r"(rsp)
-			:
-			: "rsp"
-			: "volatile");	
-*/		
-			//println!("[1] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
 
 			//println!("[{}]enter: {}\\", tid, stringify!($f));
 			let temp_ret = $f($($x)*);
 			//println!("[{}]exit : {}/", tid, stringify!($f));
-		
-/*		
-		asm!("mov %rsp, $0"
-			: "=r"(rsp)
-			:
-			: "rsp"
-			: "volatile");
-*/
-			//println!("[2] tid: {}, rsp: {:#x}, kernel: {:#x} user: {:#x}", tid, rsp, kernel_stack_pointer, user_stack_pointer);
 
 			// Save kernel stack pinter and
 			// swiatch back to the user stack
@@ -355,14 +328,6 @@ macro_rules! kernel_function {
 				: "r"(user_stack_pointer)
 				: "rsp"
 				: "volatile");
-/*
-		asm!("mov %rsp, $0"
-			: "=r"(rsp)
-			:
-			: "rsp"
-			: "volatile");
-*/	
-			//println!("tid {}, kernel: {:#x} user: {:#x}", tid, kernel_stack_pointer, user_stack_pointer);
 
 			asm!("mov $$0xfc, %eax;
 				  xor %ecx, %ecx;
@@ -380,7 +345,9 @@ macro_rules! kernel_function {
 
 	($p:tt.$f:ident($($x:tt)*)) => {{
 		use x86_64::kernel::percore::core_scheduler;
+		#[allow(unused)]
 		let mut kernel_stack_pointer: usize;
+		#[allow(unused)]
 		let mut user_stack_pointer: usize;
 		#[allow(unused)]
 		unsafe {
@@ -396,7 +363,7 @@ macro_rules! kernel_function {
 				: "volatile");
 			
 			let tid = core_scheduler().current_task.borrow().id.into();
-
+	
 			// Save user stack pointer and 
 			// switch stack to the kernel stack
 			asm!("mov %rsp, $0"
@@ -412,10 +379,10 @@ macro_rules! kernel_function {
 				: "rsp"
 				: "volatile");
 
-			println!("[{}]enter: {}\\", tid, stringify!($f));
+			//println!("[{}]enter: {}\\", tid, stringify!($f));
 			let temp_ret = $p.$f($($x)*);
-			println!("[{}]exit : {}/", tid, stringify!($f));
-		
+			//println!("[{}]exit : {}/", tid, stringify!($f));
+
 			// Save kernel stack pinter and
 			// swiatch back to the user stack
 			asm!("mov %rsp, $0"
@@ -442,7 +409,6 @@ macro_rules! kernel_function {
 				: "volatile");
 
 			temp_ret
-			
 		}
 	}};
 }
