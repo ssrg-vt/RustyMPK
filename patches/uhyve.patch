@@ -1,0 +1,36 @@
+commit 8b8846f054bd4e9bdc4f101047d05659b7dad741
+Author: mincheol <mincheol@vt.edu>
+Date:   Wed Oct 2 14:13:54 2019 +0000
+
+    Set USER bits on all levels of the page tables
+
+diff --git a/src/vm.rs b/src/vm.rs
+index 0aa86c9..e7c1b88 100644
+--- a/src/vm.rs
++++ b/src/vm.rs
+@@ -411,21 +411,22 @@ pub trait Vm {
+ 
+ 			pml4.entries[0].set(
+ 				BOOT_PDPTE as usize,
+-				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE,
++				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE | PageTableEntryFlags::USER_ACCESSIBLE,
+ 			);
+ 			pml4.entries[511].set(
+ 				BOOT_PML4 as usize,
+-				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE,
++				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE | PageTableEntryFlags::USER_ACCESSIBLE,
+ 			);
+ 			pdpte.entries[0].set(
+ 				BOOT_PDE as usize,
+-				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE,
++				PageTableEntryFlags::PRESENT | PageTableEntryFlags::WRITABLE | PageTableEntryFlags::USER_ACCESSIBLE,
+ 			);
+ 
+ 			for i in 0..511 {
+ 				pde.entries[i].set(
+ 					i * LargePageSize::SIZE,
+ 					PageTableEntryFlags::PRESENT
++                        | PageTableEntryFlags::USER_ACCESSIBLE
+ 						| PageTableEntryFlags::WRITABLE
+ 						| PageTableEntryFlags::HUGE_PAGE,
+ 				);

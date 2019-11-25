@@ -92,7 +92,6 @@ static mut ALLOCATOR: LockedHeap = LockedHeap::empty();
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
-	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 	let ptr;
 
@@ -106,7 +105,6 @@ pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
 		size,
 		align
 	);
-	//kernel_exit!();
 	ptr
 }
 
@@ -114,7 +112,6 @@ pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size: usize) -> *mut u8 {
-	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 	let new_ptr;
 
@@ -127,7 +124,6 @@ pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size:
 		ptr as usize,
 		new_ptr as usize
 	);
-	//kernel_exit!();
 	new_ptr
 }
 
@@ -135,7 +131,6 @@ pub extern "C" fn sys_realloc(ptr: *mut u8, size: usize, align: usize, new_size:
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
-	//kernel_enter!();
 	let layout: Layout = Layout::from_size_align(size, align).unwrap();
 
 	trace!(
@@ -147,7 +142,6 @@ pub extern "C" fn sys_free(ptr: *mut u8, size: usize, align: usize) {
 	unsafe {
 		ALLOCATOR.dealloc(ptr, layout);
 	}
-	//kernel_exit!();
 }
 
 /// Helper function to check if uhyve provide an IP device

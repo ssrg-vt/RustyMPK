@@ -200,7 +200,7 @@ pub fn set_core_scheduler(scheduler: *mut PerCoreScheduler) {
 }
 
 pub fn init() {
-	unsafe { /* FIXME */
+	unsafe {
 		let address;
 		if is_unsafe_storage_init() {
 			let unsafe_storage = get_unsafe_storage();

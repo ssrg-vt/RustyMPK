@@ -512,7 +512,7 @@ pub fn boot_application_processors() {
 		SMP_BOOT_CODE_ADDRESS
 	);
 	let mut flags = PageTableEntryFlags::empty();
-	flags.normal().writable(); /*FIXME*/
+	flags.normal().writable();
 	paging::map::<BasePageSize>(SMP_BOOT_CODE_ADDRESS, SMP_BOOT_CODE_ADDRESS, 1, flags);
 	unsafe {
         isolate_function_strong!(copy_nonoverlapping(

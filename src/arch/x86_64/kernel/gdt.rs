@@ -83,8 +83,7 @@ pub fn init() {
 }
 
 pub fn add_current_core() {
-	unsafe { /* FIXME */
-        //isolation_start!();
+	unsafe {
 		// Load the GDT for the current core.
 		dtables::lgdt(&GDTR);
 
@@ -93,7 +92,6 @@ pub fn add_current_core() {
 		load_ds(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
 		load_es(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
 		load_ss(SegmentSelector::new(GDT_KERNEL_DATA, Ring::Ring0));
-        //isolation_end!();
 	}
 
 	// Dynamically allocate memory for a Task-State Segment (TSS) for this core.

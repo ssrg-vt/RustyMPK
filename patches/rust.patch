@@ -1,0 +1,13 @@
+diff --git a/src/librustc_target/spec/x86_64_unknown_hermit.rs b/src/librustc_target/spec/x86_64_unknown_hermit.rs
+index b8be43be097..dd07815b2f4 100644
+--- a/src/librustc_target/spec/x86_64_unknown_hermit.rs
++++ b/src/librustc_target/spec/x86_64_unknown_hermit.rs
+@@ -4,7 +4,7 @@ pub fn target() -> TargetResult {
+     let mut base = super::hermit_base::opts();
+     base.cpu = "x86-64".to_string();
+     base.max_atomic_width = Some(64);
+-    base.features = "+rdrnd,+rdseed".to_string();
++    base.features = "+rdrnd,+rdseed,-mmx,-sse,+soft-float".to_string();
+     base.stack_probes = true;
+ 
+     Ok(Target {
