@@ -106,9 +106,10 @@ pub fn add_current_core() {
 	unsafe {
 		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
-		boxed_tss.rsp[0] = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
+		let temp_rsp = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
 		isolation_end!();
-		clear_unsafe_storage();
+		boxed_tss.rsp[0] = temp_rsp;
+                clear_unsafe_storage();
 	}
 
 	// Allocate all ISTs for this core.

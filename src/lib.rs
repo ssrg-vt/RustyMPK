@@ -86,7 +86,7 @@ use mm::allocator::LockedHeap;
 
 #[cfg(not(test))]
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static mut ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
@@ -198,21 +198,19 @@ extern "C" fn initd(_arg: usize) {
 	}
 	syscalls::init();
 
-	// Get the application arguments and environment variables.
-	let (argc, argv, environ) = syscalls::get_application_parameters();
-
 	// give the IP thread time to initialize the network interface
 	core_scheduler().scheduler();
 
+	#[cfg(not(feature = "newlib"))]
+	{
+		// Switch global allocator to user heap
+		mm::init_user_allocator();
+	}
+	// Get the application arguments and environment variables.
+	let (argc, argv, environ) = syscalls::get_application_parameters();
+	user_start!(false);
+
 	unsafe {
-		use arch::x86_64::mm::paging::*;
-		print_page_table_entry::<LargePageSize>(0x0);
-
-		info!("safe_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.stack, core_scheduler().current_task.borrow().stacks.stack + DEFAULT_STACK_SIZE);
-		info!("unsafe_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.isolated_stack, core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE);
-		info!("user_stack:{:#X} ~ {:#X}", core_scheduler().current_task.borrow().stacks.user_stack, core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE);
-		user_start!(false);
-
 		runtime_entry(argc, argv, environ);
 	}
 }
