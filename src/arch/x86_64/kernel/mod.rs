@@ -392,7 +392,7 @@ pub fn output_message_byte(byte: u8) {
 		vga::write_byte(byte);
 	} else {
 		// Output messages to the kernel message buffer in multi-kernel mode.
-		kernel_message_buffer::write_byte(byte);
+		kernel_message_buffer::kmsg_write_byte(byte);
 	}
 }
 

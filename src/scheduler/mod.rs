@@ -173,7 +173,13 @@ impl PerCoreScheduler {
 				self.current_task.borrow().id
 			);
 
-			self.fpu_owner.borrow_mut().last_fpu_state.save();
+                        {
+			    let mut owner = self.fpu_owner.borrow_mut();
+                            if owner.status != TaskStatus::TaskInvalid && 
+                               owner.status != TaskStatus::TaskFinished {
+                                owner.last_fpu_state.save();
+                            }
+                        }
 			self.current_task.borrow().last_fpu_state.restore();
 			self.fpu_owner = self.current_task.clone();
 		}

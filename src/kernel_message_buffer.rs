@@ -26,11 +26,13 @@ unsafe_global_var!( static mut KMSG: KmsgSection = KmsgSection {
 
 safe_global_var!(static BUFFER_INDEX: AtomicUsize = AtomicUsize::new(0));
 
-pub fn write_byte(byte: u8) {
+unsafe fn write_byte<T>(buffer: *mut T, byte: T) {
+	volatile_store(buffer, byte);
+}
+
+pub fn kmsg_write_byte(byte: u8) {
 	let index = BUFFER_INDEX.fetch_add(1, Ordering::SeqCst);
 	unsafe {
-		isolation_start!();
-		volatile_store(&mut KMSG.buffer[index % KMSG_SIZE], byte);
-		isolation_end!();
+		isolate_function_strong!(write_byte(&mut KMSG.buffer[index % KMSG_SIZE], byte));
 	}
 }

@@ -143,8 +143,9 @@ pub fn init() {
 		}
 	}
 
-	/* Init isolated .data section */
+	/* Init  .safe_data section */
 	allocate_safe_data();
+	/* Init  .unsafe_data section */
 	allocate_unsafe_data();
 
 	let mut map_addr: usize;
@@ -377,7 +378,7 @@ pub fn user_allocate(sz: usize, execute_disable: bool) -> usize {
 }
 
 fn allocate_safe_data() {
-    let isolated_data_start = 0x400000usize;
+    let safe_data_start = 0x400000usize;
 	let aligned_size = 0x200000usize;
 	/* We harcode the physical address here */
 	let physical_address = 0x400000usize;
@@ -386,12 +387,12 @@ fn allocate_safe_data() {
 	let mut flags = PageTableEntryFlags::empty();
 	flags.normal().writable().pkey(SAFE_MEM_REGION);
 	flags.execute_disable();
-	arch::mm::paging::map::<LargePageSize>(isolated_data_start, physical_address, count, flags);
-	info!("isolated .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", isolated_data_start, physical_address, aligned_size);
+	arch::mm::paging::map::<LargePageSize>(safe_data_start, physical_address, count, flags);
+	info!("safe .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", safe_data_start, physical_address, aligned_size);
 }
 
 fn allocate_unsafe_data() {
-    let user_data_start = 0x600000usize;
+    let unsafe_data_start = 0x600000usize;
 	let aligned_size = 0x200000usize;
 	/* We harcode the physical address here */
 	let physical_address = 0x600000usize;
@@ -399,8 +400,8 @@ fn allocate_unsafe_data() {
 	let mut flags = PageTableEntryFlags::empty();
 	flags.normal().writable().pkey(UNSAFE_MEM_REGION);
 	flags.execute_disable();
-	arch::mm::paging::map::<LargePageSize>(user_data_start, physical_address, count, flags);
-	info!("user .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", user_data_start, physical_address, aligned_size);
+	arch::mm::paging::map::<LargePageSize>(unsafe_data_start, physical_address, count, flags);
+	info!("unsafe .data starts at (virt_address: {:#X}, phys_address: {:#X}), size: {:#X}", unsafe_data_start, physical_address, aligned_size);
 }
 
 pub fn deallocate(virtual_address: usize, sz: usize) {

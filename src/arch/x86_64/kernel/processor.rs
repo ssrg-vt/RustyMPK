@@ -173,15 +173,15 @@ impl FPUState {
 		if supports_xsave() {
 			let bitmask = u32::MAX;
 			unsafe {
-				isolation_start!();
+				//isolation_start!();
 				asm!("xrstorq $0" :: "*m"(self as *const Self), "{eax}"(bitmask), "{edx}"(bitmask) :: "volatile");
-				isolation_end!();
+				//isolation_end!();
 			}
 		} else {
 			unsafe {
-				isolation_start!();
+				//isolation_start!();
 				asm!("fxrstor $0" :: "*m"(self as *const Self) :: "volatile");
-				isolation_end!();
+				//isolation_end!();
 			}
 		}
 	}
@@ -190,24 +190,24 @@ impl FPUState {
 		if supports_xsave() {
 			let bitmask: u32 = u32::MAX;
 			unsafe {
-				isolation_start!();
+				//isolation_start!();
 				asm!("xsaveq $0" : "=*m"(self as *mut Self) : "{eax}"(bitmask), "{edx}"(bitmask) : "memory" : "volatile");
-				isolation_end!();
+				//isolation_end!();
 			}
 		} else {
 			unsafe {
-				isolation_start!();
+				//isolation_start!();
 				asm!("fxsave $0; fnclex" : "=*m"(self as *mut Self) :: "memory" : "volatile");
-				isolation_end!();
+				//isolation_end!();
 			}
 		}
 	}
 
 	pub fn restore_common(&self) {
 		unsafe {
-			isolation_start!();
+			//isolation_start!();
 			asm!("fxrstor $0" :: "*m"(self as *const Self) :: "volatile");
-			isolation_end!();
+			//isolation_end!();
 		}
 	}
 }
@@ -800,18 +800,18 @@ pub fn configure() {
     }
 
     if supports_fsgs() {
-		cr4.insert(Cr4::CR4_ENABLE_FSGSBASE);
-	} else {
-		error!("libhermit-rs requires the CPU feature FSGSBASE");
-		loop {
-			spin_loop_hint();
-		}
+        cr4.insert(Cr4::CR4_ENABLE_FSGSBASE);
+    } else {
+	error!("libhermit-rs requires the CPU feature FSGSBASE");
+	loop {
+	    spin_loop_hint();
 	}
+    }
 
-	debug!("Set CR4 to 0x{:x}", cr4);
-	unsafe {
-		cr4_write(cr4);
-	}
+    debug!("Set CR4 to 0x{:x}", cr4);
+    unsafe {
+        cr4_write(cr4);
+    }
 
 	//
 	// XCR0 CONFIGURATION
@@ -940,7 +940,7 @@ pub fn supports_x2apic() -> bool {
 
 #[inline]
 pub fn supports_xsave() -> bool {
-	unsafe { SUPPORTS_XSAVE }
+	false //unsafe { SUPPORTS_XSAVE }
 }
 
 #[inline]

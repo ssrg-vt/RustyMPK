@@ -207,36 +207,45 @@ impl TaskFrame for Task {
 		/* This function initializes an empty stack frame.
 		   So we can just set pages to SHARE_MEM_REGION then set it back to SAFE_MEM_RGION after the initializtion.
 		*/
-		//set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SHARED_MEM_REGION);
-		unsafe { /* FIXME */
+		use arch::x86_64::mm::paging::{set_pkey_on_page_table_entry, BasePageSize};
+		set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SHARED_MEM_REGION);
+		unsafe {
 			// Mark the entire stack with 0xCD.
-			ptr::write_bytes(self.stacks.stack as *mut u8, 0xCD, DEFAULT_STACK_SIZE);
+			use core::ptr::write_bytes;
+			let temp_stack = self.stacks.stack;
+			isolate_function_weak!(write_bytes(temp_stack as *mut u8, 0xCD, DEFAULT_STACK_SIZE));
 
 			// Set a marker for debugging at the very top.
 			let mut stack = (self.stacks.stack + DEFAULT_STACK_SIZE - 0x10) as *mut usize;
+			isolation_start!();
 			*stack = 0xDEAD_BEEFusize;
+			isolation_end!();
 
 			// Put the leave_task function on the stack.
 			// When the task has finished, it will call this function by returning.
 			stack = (stack as usize - mem::size_of::<usize>()) as *mut usize;
+			isolation_start!();
 			*stack = leave_task as usize;
-
+			isolation_end!();
 			// Put the State structure expected by the ASM switch() function on the stack.
 			stack = (stack as usize - mem::size_of::<State>()) as *mut usize;
 
 			let state = stack as *mut State;
-			ptr::write_bytes(state as *mut u8, 0, mem::size_of::<State>());
+			isolation_start!();
+			let state_ref = &mut *state;
+			isolation_end!();
+			isolate_function_weak!(write_bytes(state as *mut u8, 0, mem::size_of::<State>()));
 
-			(*state).rip = task_entry as usize;
-			(*state).rdi = func as usize;
-			(*state).rsi = arg as usize;
-			(*state).rflags = 0x1202usize;
+			(*state_ref).rip = task_entry as usize;
+			(*state_ref).rdi = func as usize;
+			(*state_ref).rsi = arg as usize;
+			(*state_ref).rflags = 0x1202usize;
 
 			// Set the task's stack pointer entry to the stack we have just crafted.
 			self.last_stack_pointer = stack as usize;
 			self.user_stack_pointer = self.stacks.user_stack as usize + DEFAULT_STACK_SIZE;
 		}
-		//set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SAFE_MEM_REGION);
+		set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SAFE_MEM_REGION);
 	}
 }
 

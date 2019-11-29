@@ -873,17 +873,10 @@ pub fn init_page_tables() {
 	let size = (512 - (mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)))
 		* mem::size_of::<u64>();
 	unsafe {
-		ptr::write_bytes(start as *mut u8, 0, size);
-		//let size = (mm::kernel_start_address() >> (PAGE_MAP_BITS + PAGE_BITS)) * mem::size_of::<u64>();
-		//ptr::write_bytes(pde as *mut u8, 0, size);
-		// flush tlb
+        use core::ptr::write_bytes;
+		isolate_function_strong!(write_bytes(start as *mut u8, 0, size));
 		controlregs::cr3_write(pml4);
 	}
-
-	/*if is_uhyve() {
-		// we need to map GDT from hypervisor
-		identity_map(BOOT_GDT, BOOT_GDT);
-	}*/
 
 	// Identity-map the supplied Multiboot information and command line.
 	let mb_info = get_mbinfo();
