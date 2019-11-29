@@ -18,7 +18,8 @@ use arch::x86_64::kernel::processor;
 use arch::x86_64::kernel::copy_safe::*;
 use config::*;
 use core::cell::RefCell;
-use core::{mem, ptr};
+use core::mem;
+use core::ptr::write_bytes;
 use environment;
 use mm;
 use scheduler::task::{Task, TaskFrame, TaskTLS};
@@ -211,7 +212,6 @@ impl TaskFrame for Task {
 		set_pkey_on_page_table_entry::<BasePageSize>(self.stacks.stack, DEFAULT_STACK_SIZE/4096, mm::SHARED_MEM_REGION);
 		unsafe {
 			// Mark the entire stack with 0xCD.
-			use core::ptr::write_bytes;
 			let temp_stack = self.stacks.stack;
 			isolate_function_weak!(write_bytes(temp_stack as *mut u8, 0xCD, DEFAULT_STACK_SIZE));
 

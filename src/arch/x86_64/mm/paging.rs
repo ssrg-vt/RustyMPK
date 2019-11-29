@@ -16,7 +16,7 @@ use arch::x86_64::mm::paddr_to_slice;
 use arch::x86_64::mm::physicalmem;
 use core::marker::PhantomData;
 use core::mem;
-use core::ptr;
+use core::ptr::write_bytes;
 use environment;
 use mm;
 use multiboot::Multiboot;
@@ -873,7 +873,6 @@ pub fn init_page_tables() {
 	let size = (512 - (mm::kernel_end_address() >> (PAGE_MAP_BITS + PAGE_BITS)))
 		* mem::size_of::<u64>();
 	unsafe {
-        use core::ptr::write_bytes;
 		isolate_function_strong!(write_bytes(start as *mut u8, 0, size));
 		controlregs::cr3_write(pml4);
 	}
