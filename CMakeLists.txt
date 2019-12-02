@@ -5,7 +5,7 @@ set(HERMIT_RS "${CMAKE_BINARY_DIR}/hermit_rs/${HERMIT_ARCH}-unknown-hermit-kerne
 add_custom_target(hermit_rs
 	COMMAND
 		${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/hermit_rs RUST_TARGET_PATH=${HERMIT_ROOT}/librs
-		cargo xbuild ${CARGO_BUILDTYPE_PARAMETER} --target ${HERMIT_ARCH}-unknown-hermit-kernel --features newlib
+		cargo xbuild ${CARGO_BUILDTYPE_PARAMETER} --target ${HERMIT_ARCH}-unknown-hc.json --features newlib
 	WORKING_DIRECTORY
 		${CMAKE_CURRENT_LIST_DIR})
 
@@ -24,13 +24,13 @@ if("${HERMIT_ARCH}" STREQUAL "aarch64")
 #	add_subdirectory(src/arch/x86_64/kernel)
 endif()
 
-set(LWIP_SRC ../lwip/src)
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/api/*.c")
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/arch/*.c")
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/*.c")
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/ipv4/*.c")
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/ipv6/*.c")
-add_kernel_module_sources("lwip"	"${LWIP_SRC}/netif/*.c")
+set(LWIP_SRC /home/mincheol/hermit-playground/lwip/src)
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/api/*.c")
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/arch/*.c")
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/*.c")
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/ipv4/*.c")
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/core/ipv6/*.c")
+#add_kernel_module_sources("lwip"	"${LWIP_SRC}/netif/*.c")
 
 get_kernel_modules(KERNEL_MODULES)
 foreach(MODULE ${KERNEL_MODULES})

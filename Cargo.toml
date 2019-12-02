@@ -19,7 +19,7 @@ exclude = ["/img/*", "/loader/*", "/tests/*", "./Makefile", "./CMakeLists.txt", 
 travis-ci = { repository = "hermitcore/libhermit-rs" }
 
 [lib]
-crate-type = ["staticlib", "rlib"]
+crate-type = ["staticlib"]
 name = "hermit"
 
 [features]
@@ -32,6 +32,7 @@ rustc-dep-of-std = ['core', 'compiler_builtins/rustc-dep-of-std']
 core = { version = '1.0.0', optional = true, package = 'rustc-std-workspace-core' }
 compiler_builtins = { version = '0.1.10', optional = true }
 bitflags = "1.2"
+raw-cpuid = "7.0.3"
 #lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 #cfg-if = "0.1"
 #byteorder = { version = "1.0", default-features = false }
