@@ -297,7 +297,7 @@ impl SyscallInterface for Uhyve {
 
 	fn read(&self, fd: i32, buf: *mut u8, len: usize) -> isize {
 		// do we have an LwIP file descriptor?
-		#[cfg(feature = "newlib")]
+		/*#[cfg(feature = "newlib")]
 		{
 			if (fd & LWIP_FD_BIT) != 0 {
 				// take lock to protect LwIP
@@ -313,7 +313,7 @@ impl SyscallInterface for Uhyve {
 
 				return ret as isize;
 			}
-		}
+		}*/
 
 		let mut sysread = SysRead::new(fd, buf, len);
 		uhyve_send(UHYVE_PORT_READ, &mut sysread);
@@ -323,7 +323,7 @@ impl SyscallInterface for Uhyve {
 
 	fn write(&self, fd: i32, buf: *const u8, len: usize) -> isize {
 		// do we have an LwIP file descriptor?
-		#[cfg(feature = "newlib")]
+		/*#[cfg(feature = "newlib")]
 		{
 			if (fd & LWIP_FD_BIT) != 0 {
 				// take lock to protect LwIP
@@ -339,7 +339,7 @@ impl SyscallInterface for Uhyve {
 
 				return ret as isize;
 			}
-		}
+		}*/
 
 		let mut syswrite = SysWrite::new(fd, buf, len);
 		uhyve_send(UHYVE_PORT_WRITE, &mut syswrite);
