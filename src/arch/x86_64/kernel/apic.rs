@@ -18,7 +18,7 @@ use arch::x86_64::kernel::smp_boot_code::SMP_BOOT_CODE;
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
 use arch::x86_64::mm::paging;
-use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
+use arch::x86_64::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags, print_page_table_entry, LargePageSize};
 use arch::x86_64::mm::virtualmem;
 use config::*;
 use core::sync::atomic::spin_loop_hint;
@@ -80,7 +80,7 @@ safe_global_var!(static mut IOAPIC_ADDRESS: usize = 0);
 ///
 /// As Rust currently implements no way of zero-initializing a global Vec in a no_std environment,
 /// we have to encapsulate it in an Option...
-safe_global_var!(static mut CPU_LOCAL_APIC_IDS: Option<Vec<u8>> = None);
+safe_global_var!(static mut CPU_LOCAL_APIC_IDS:[u8;100] = [255;100]);
 
 #[allow(unused)]
 /// After calibration, initialize the APIC Timer with this counter value to let it fire an interrupt
@@ -163,10 +163,18 @@ extern "x86-interrupt" fn wakeup_handler(_stack_frame: &mut irq::ExceptionStackF
 	eoi();
 }
 
+#[no_mangle]
 #[inline]
 pub fn add_local_apic_id(id: u8) {
+	safe_global_var!(static mut IDX: usize = 0);
 	unsafe {
-		CPU_LOCAL_APIC_IDS.as_mut().unwrap().push(id);
+		if IDX >= 100 {
+			error!("LIST is full!!");
+			error!(" ");
+			return;
+		}
+		CPU_LOCAL_APIC_IDS[IDX] = id;
+		IDX+=1;
 	}
 }
 
@@ -266,9 +274,9 @@ pub extern "C" fn eoi() {
 
 pub fn init() {
 	// Initialize an empty vector for the Local APIC IDs of all CPUs.
-	unsafe {
-		CPU_LOCAL_APIC_IDS = Some(Vec::new());
-	}
+	//unsafe {
+	//	CPU_LOCAL_APIC_IDS = mm::allocate(100, true);
+	//}
 
 	// Detect CPUs and APICs.
 	let local_apic_physical_address = detect_from_uhyve()
@@ -479,14 +487,21 @@ pub fn init_next_processor_variables(core_id: usize) {
 	// Allocate stack and PerCoreVariables structure for the CPU and pass the addresses.
 	// Keep the stack executable to possibly support dynamically generated code on the stack (see https://security.stackexchange.com/a/47825).
 	let stack = mm::allocate(KERNEL_STACK_SIZE, false);
-	let boxed_percore = Box::new(PerCoreVariables::new(core_id));
-	let percore_ptr = Box::into_raw(boxed_percore) as u64;
+	let mut boxed_percore = PerCoreVariables::new(core_id);
+	let percore_ptr = &mut boxed_percore as *mut _;
+	let alloc_percore = mm::allocate(mem::size_of::<PerCoreVariables>(), true) as *mut PerCoreVariables;
+	list_add(alloc_percore as usize);
+	list_add(percore_ptr as usize);
+	copy_from_safe(percore_ptr, 1);
+	copy_to_safe(alloc_percore, 1);
+	clear_unsafe_storage();
+
 	let unsafe_storage = get_unsafe_storage();
 	unsafe {
 		copy_from_safe(BOOT_INFO, 1);
 		isolation_start!();
 		intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).current_stack_address, stack as u64);
-		intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).current_percore_address, percore_ptr,);
+		intrinsics::volatile_store(&mut (*(unsafe_storage as *mut BootInfo)).current_percore_address, alloc_percore as u64,);
 		isolation_end!();
 		copy_to_safe(BOOT_INFO, 1);
 		clear_unsafe_storage();
@@ -537,11 +552,11 @@ pub fn boot_application_processors() {
 	}
 
 	// Now wake up each application processor.
-	let apic_ids = unsafe { CPU_LOCAL_APIC_IDS.as_ref().unwrap() };
+	let apic_ids = unsafe { CPU_LOCAL_APIC_IDS };
 	let core_id = core_id();
 
 	for core_id_to_boot in 0..apic_ids.len() {
-		if core_id_to_boot != core_id {
+		if core_id_to_boot != core_id && core_id_to_boot != 255 {
 			let apic_id = apic_ids[core_id_to_boot];
 			let destination = u64::from(apic_id) << 32;
 
@@ -590,7 +605,7 @@ pub fn boot_application_processors() {
 
 pub fn ipi_tlb_flush() {
 	if arch::get_processor_count() > 1 {
-		let apic_ids = unsafe { CPU_LOCAL_APIC_IDS.as_ref().unwrap() };
+		let apic_ids = unsafe { CPU_LOCAL_APIC_IDS };
 		let core_id = core_id();
 
 		// Ensure that all memory operations have completed before issuing a TLB flush.
@@ -600,7 +615,7 @@ pub fn ipi_tlb_flush() {
 
 		// Send an IPI with our TLB Flush interrupt number to all other CPUs.
 		for core_id_to_interrupt in 0..apic_ids.len() {
-			if core_id_to_interrupt != core_id {
+			if core_id_to_interrupt != core_id && core_id_to_interrupt != 255 {
 				let local_apic_id = apic_ids[core_id_to_interrupt];
 				let destination = u64::from(local_apic_id) << 32;
 				local_apic_write(
@@ -617,7 +632,7 @@ pub fn ipi_tlb_flush() {
 /// Send an inter-processor interrupt to wake up a CPU Core that is in a HALT state.
 pub fn wakeup_core(core_id_to_wakeup: usize) {
 	if core_id_to_wakeup != core_id() {
-		let apic_ids = unsafe { CPU_LOCAL_APIC_IDS.as_ref().unwrap() };
+		let apic_ids = unsafe { CPU_LOCAL_APIC_IDS };
 		let local_apic_id = apic_ids[core_id_to_wakeup];
 		let destination = u64::from(local_apic_id) << 32;
 		local_apic_write(

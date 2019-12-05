@@ -747,6 +747,14 @@ pub fn detect_features() {
 	}
 }
 
+pub fn fpu_init() {
+    let fpu = FPUState::new();
+    fpu.restore();
+    unsafe {
+        asm!("clts" :::: "volatile");
+    }
+}
+
 pub fn configure() {
 	// setup MSR EFER
 	unsafe {
@@ -826,6 +834,8 @@ pub fn configure() {
 			xcr0.insert(Xcr0::XCR0_AVX_STATE);
 		}
 
+		// Disable xrstor to modify PKRU
+		xcr0.remove(Xcr0::XCR0_PKRU_STATE);
 		unsafe {
 			xcr0_write(xcr0);
 		}
@@ -940,7 +950,7 @@ pub fn supports_x2apic() -> bool {
 
 #[inline]
 pub fn supports_xsave() -> bool {
-	false //unsafe { SUPPORTS_XSAVE }
+	unsafe { SUPPORTS_XSAVE }
 }
 
 #[inline]

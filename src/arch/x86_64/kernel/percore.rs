@@ -45,6 +45,7 @@ pub trait PerCoreVariableMethods<T> {
 	fn safe_get(&self) -> T;
 	unsafe fn set(&self, value: T);
 	fn safe_set(&self, value: T);
+	fn bad_set(&self, value: T);
 }
 
 impl<T> PerCoreVariable<T> {
@@ -74,15 +75,15 @@ impl<T> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 	#[inline]
 	default fn safe_get(&self) -> T {
 		let value: T;
-		list_add(processor::readgs());
-		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		let gs = processor::readgs();
+		copy_from_safe(gs as *const PerCoreVariables, 1);			
 		unsafe {
 			let offset = self.offset();
 			isolation_start!();
 			asm!("swapgs; movq %gs:($1), $0; swapgs" : "=r"(value) : "r"(offset) :: "volatile");
 			isolation_end!();
 		}
-		clear_unsafe_storage();
+		//clear_unsafe_storage2(gs as *const PerCoreVariables);
 		value
 	}
 
@@ -93,16 +94,31 @@ impl<T> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 
 	#[inline]
 	default fn safe_set(&self, value: T) {
-		list_add(processor::readgs());
-		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		let gs = processor::readgs();
+		copy_from_safe(gs as *const PerCoreVariables, 1);			
 		unsafe {
 			let offset = self.offset();
 			isolation_start!();
 			asm!("swapgs; movq $0, %gs:($1); swapgs" :: "r"(value), "r"(offset) :: "volatile");
 			isolation_end!();
 		}
-		copy_to_safe(processor::readgs() as *mut PerCoreVariables, 1);			
-		clear_unsafe_storage();
+		copy_to_safe(gs as *mut PerCoreVariables, 1);			
+		clear_unsafe_storage2(gs as *mut PerCoreVariables);
+	}
+
+
+	#[inline]
+	default fn bad_set(&self, value: T) {
+		let gs = processor::readgs();
+		copy_from_safe(gs as *const PerCoreVariables, 1);			
+		unsafe {
+			let offset = 0x400000 - 0x1000000;
+			isolation_start!();
+			asm!("swapgs; movq $0, %gs:($1); swapgs" :: "r"(value), "r"(offset) :: "volatile");
+			isolation_end!();
+		}
+		copy_to_safe(gs as *mut PerCoreVariables, 1);			
+		clear_unsafe_storage2(gs as *mut PerCoreVariables);
 	}
 }
 
@@ -123,15 +139,15 @@ impl<T: Is32BitVariable> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 	#[inline]
 	fn safe_get(&self) -> T {
 		let value: T;
-		list_add(processor::readgs());
-		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		let gs = processor::readgs();
+		copy_from_safe(gs as *const PerCoreVariables, 1);			
 		unsafe {
 			let offset = self.offset();
 			isolation_start!();
 			asm!("swapgs; movq %gs:($1), $0; swapgs" : "=r"(value) : "r"(offset) :: "volatile");
 			isolation_end!();
 		}
-		clear_unsafe_storage();
+		clear_unsafe_storage2(gs as *const PerCoreVariables);
 		value
 	}
 
@@ -142,16 +158,16 @@ impl<T: Is32BitVariable> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 
 	#[inline]
 	fn safe_set(&self, value: T) {
-		list_add(processor::readgs());
-		copy_from_safe(processor::readgs() as *const PerCoreVariables, 1);			
+		let gs = processor::readgs();
+		copy_from_safe(gs as *const PerCoreVariables, 1);			
 		unsafe {
 			let offset = self.offset();
 			isolation_start!();
 			asm!("swapgs; movq $0, %gs:($1); swapgs" :: "r"(value), "r"(offset) :: "volatile");
 			isolation_end!();
 		}
-		copy_to_safe(processor::readgs() as *mut PerCoreVariables, 1);			
-		clear_unsafe_storage();
+		copy_to_safe(gs as *mut PerCoreVariables, 1);			
+		clear_unsafe_storage2(gs as *const PerCoreVariables);
 	}
 }
 
@@ -164,6 +180,12 @@ pub fn core_id() -> usize {
 	else {
 		unsafe { PERCORE.core_id.get() }
 	}
+}
+
+#[cfg(not(test))]
+#[inline]
+pub fn safe_core_id() -> usize {
+	unsafe { PERCORE.core_id.safe_get() }
 }
 
 #[cfg(test)]
@@ -196,6 +218,20 @@ pub fn set_core_scheduler(scheduler: *mut PerCoreScheduler) {
 		unsafe {
 			PERCORE.scheduler.set(scheduler);
 		}
+	}
+}
+
+#[inline]
+pub fn safe_set_core_scheduler(scheduler: *mut PerCoreScheduler) {
+	unsafe {
+		PERCORE.scheduler.safe_set(scheduler);
+	}
+}
+
+#[inline]
+pub fn bad_set_core_scheduler(scheduler: *mut PerCoreScheduler) {
+	unsafe {
+		PERCORE.scheduler.bad_set(scheduler);
 	}
 }
 

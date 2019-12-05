@@ -17,7 +17,7 @@ use scheduler;
 use scheduler::task::{Priority, TaskId};
 use syscalls;
 use syscalls::timer::timespec;
-//use mm;
+use mm;
 
 #[cfg(feature = "newlib")]
 pub type SignalHandler = extern "C" fn(i32);
@@ -25,23 +25,22 @@ pub type Tid = u32;
 
 #[no_mangle]
 fn __sys_getpid() -> Tid {
-	let current_task_borrowed = core_scheduler().current_task.borrow();
-	current_task_borrowed.id.into() as Tid
+	core_scheduler().current_task.borrow().id.into() as Tid
 }
 
 #[no_mangle]
 pub extern "C" fn sys_getpid() -> Tid {
-	//kernel_enter!("sys_getpid");
-	let ret = kernel_function!(__sys_getpid());
-	//kernel_exit!("sys_getpid");
-	return ret;
+	kernel_function!(__sys_getpid())
 }
 
 #[no_mangle]
 fn __sys_getprio(id: *const Tid) -> i32 {
 	let current_task_borrowed = core_scheduler().current_task.borrow();
 
-	if id.is_null() || unsafe { *id } == current_task_borrowed.id.into() as u32 {
+	if id.is_null() || unsafe { isolation_start!();
+								let temp = *id;
+								isolation_end!();
+								temp } == current_task_borrowed.id.into() as u32 {
 		i32::from(current_task_borrowed.prio.into())
 	} else {
 		-EINVAL
@@ -110,10 +109,8 @@ fn __sys_sbrk(incr: isize) -> usize {
 #[cfg(feature = "newlib")]
 #[no_mangle]
 pub extern "C" fn sys_sbrk(incr: isize) -> usize {
-	//kernel_enter!("sys_sbrk");
-	let ret = kernel_function!(__sys_sbrk(incr));
-	//kernel_exit!("sys_sbrk");
-	return ret;
+	kernel_function!(__sys_sbrk(incr))
+    //__sys_sbrk(incr)
 }
 
 #[no_mangle]
@@ -155,7 +152,12 @@ pub extern "C" fn sys_nanosleep(rqtp: *const timespec, _rmtp: *mut timespec) -> 
 		!rqtp.is_null(),
 		"sys_nanosleep called with a zero rqtp parameter"
 	);
-	let requested_time = unsafe { &*rqtp };
+	let requested_time = unsafe {
+									isolation_start!();
+									let temp = &*rqtp;
+									isolation_end!();
+									temp
+								};
 	if requested_time.tv_sec < 0
 		|| requested_time.tv_nsec < 0
 		|| requested_time.tv_nsec > 999_999_999
@@ -177,8 +179,11 @@ fn __sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
 	let task_id = core_scheduler().clone(func, arg);
 
 	if !id.is_null() {
+		let temp = task_id.into() as u32;
 		unsafe {
-			*id = task_id.into() as u32;
+			isolation_start!();
+			*id = temp;
+			isolation_end!();
 		}
 	}
 
@@ -239,8 +244,11 @@ fn __sys_spawn(
 	let task_id = core_scheduler.spawn(func, arg, Priority::from(prio));
 
 	if !id.is_null() {
+		let temp = task_id.into() as u32;
 		unsafe {
-			*id = task_id.into() as u32;
+			isolation_start!();
+			*id = temp;
+			isolation_end!();
 		}
 	}
 

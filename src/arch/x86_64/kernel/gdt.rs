@@ -6,7 +6,7 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use alloc::boxed::Box;
+//use alloc::boxed::Box;
 use arch::x86_64::kernel::percore::*;
 use arch::x86_64::kernel::{BOOT_INFO, BootInfo};
 use arch::x86_64::kernel::copy_safe::*;
@@ -15,7 +15,7 @@ use core::{intrinsics, mem};
 use scheduler::task::TaskStatus;
 use x86::bits64::segmentation::*;
 use x86::bits64::task::*;
-use x86::dtables::{self, DescriptorTablePointer};
+use x86::dtables::{DescriptorTablePointer, lgdt};
 use x86::segmentation::*;
 use x86::task::*;
 use x86::Ring;
@@ -85,7 +85,16 @@ pub fn init() {
 pub fn add_current_core() {
 	unsafe {
 		// Load the GDT for the current core.
-		dtables::lgdt(&GDTR);
+		/*
+		list_add(&GDTR as *const DescriptorTablePointer<Descriptor> as usize);
+		let unsafe_storage = get_unsafe_storage();
+		copy_from_safe(&GDTR, 1);
+		isolation_start!();
+		lgdt(&(*(unsafe_storage as *const DescriptorTablePointer<Descriptor>)));
+		isolation_end!();
+		clear_unsafe_storage();
+		*/
+		lgdt(&GDTR);
 
 		// Reload the segment descriptors
 		load_cs(SegmentSelector::new(GDT_KERNEL_CODE, Ring::Ring0));
@@ -95,7 +104,8 @@ pub fn add_current_core() {
 	}
 
 	// Dynamically allocate memory for a Task-State Segment (TSS) for this core.
-	let mut boxed_tss = Box::new(TaskStateSegment::new());
+	let mut boxed_tss = TaskStateSegment::new();
+	//let mut boxed_tss = TaskStateSegment::new(); /* FIXME maybe some memory leak? */
 
 	// Every task later gets its own stack, so this boot stack is only used by the Idle task on each core.
 	// When switching to another task on this core, this entry is replaced.
@@ -107,19 +117,20 @@ pub fn add_current_core() {
 		let temp_rsp = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).current_stack_address) + KERNEL_STACK_SIZE as u64 - 0x10;
 		isolation_end!();
 		boxed_tss.rsp[0] = temp_rsp;
-                clear_unsafe_storage();
+		clear_unsafe_storage();
 	}
 
 	// Allocate all ISTs for this core.
 	// Every task later gets its own IST1, so the IST1 allocated here is only used by the Idle task.
 	for i in 0..IST_ENTRIES {
-		let ist = ::mm::allocate(KERNEL_STACK_SIZE, true);
+		let ist = ::mm::user_allocate(KERNEL_STACK_SIZE, true);
 		boxed_tss.ist[i] = (ist + KERNEL_STACK_SIZE - 0x10) as u64;
 	}
 
 	// Add this TSS to the GDT.
 	let idx = GDT_FIRST_TSS as usize + (core_id() as usize) * 2;
-	let tss = Box::into_raw(boxed_tss);
+	//let tss = Box::into_raw(boxed_tss);
+	let tss = &mut boxed_tss as *mut _;
 	{
 		let base = tss as u64;
 		let tss_descriptor: Descriptor64 =
@@ -154,9 +165,16 @@ pub fn add_current_core() {
 	// Load it.
 	let sel = SegmentSelector::new(idx as u16, Ring::Ring0);
 	unsafe {
-        load_tr(sel);
+		load_tr(sel);
+
+		let alloc_tss = mm::user_allocate(mem::size_of::<TaskStateSegment>(), true) as *mut TaskStateSegment;
+		list_add(alloc_tss as usize);
+		list_add(tss as usize);
+		copy_from_safe(tss, 1);
+		copy_to_safe(alloc_tss, 1);
+		clear_unsafe_storage();
 		// Store it in the PerCoreVariables structure for further manipulation.
-		PERCORE.tss.safe_set(tss);
+		PERCORE.tss.safe_set(alloc_tss);
 	}
 }
 

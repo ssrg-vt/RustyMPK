@@ -42,18 +42,17 @@ safe_global_var!(pub static LWIP_LOCK: SpinlockIrqSave<()> = SpinlockIrqSave::ne
 safe_global_var!(static mut SYS: &'static dyn SyscallInterface = &interfaces::Generic);
 
 pub fn init() {
-	unsafe {
-		// We know that HermitCore has successfully initialized a network interface.
-		// Now check if we can load a more specific SyscallInterface to make use of networking.
-		if environment::is_proxy() {
-			panic!("Currently, we don't support the proxy mode!");
-		} else if environment::is_uhyve() {
-			SYS = &interfaces::Uhyve;
-		}
+	
+	// We know that HermitCore has successfully initialized a network interface.
+	// Now check if we can load a more specific SyscallInterface to make use of networking.
+	if environment::is_proxy() {
+		panic!("Currently, we don't support the proxy mode!");
+	} else if environment::is_uhyve() {
+		unsafe {SYS = &interfaces::Uhyve};
+	}
 
 		// Perform interface-specific initialization steps.
-		SYS.init();
-	}
+	unsafe {SYS.init()};
 
 	random_init();
 	#[cfg(feature = "newlib")]

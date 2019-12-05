@@ -52,6 +52,9 @@ extern crate x86;
 #[macro_use]
 extern crate log;
 
+#[cfg(target_arch = "x86_64")]
+extern crate raw_cpuid;
+
 //#[macro_use]
 //extern crate lazy_static;
 
@@ -96,6 +99,9 @@ pub extern "C" fn sys_malloc(size: usize, align: usize) -> *mut u8 {
 	let ptr;
 
 	unsafe {
+		//isolation_start!();
+		//ptr = ALLOCATOR.alloc(layout);
+		//isolation_end!();
 		ptr = ALLOCATOR.alloc(layout);
 	}
 
@@ -160,28 +166,28 @@ fn has_ipdevice() -> bool {
 extern "C" fn initd(_arg: usize) {
 	extern "C" {
 		fn runtime_entry(argc: i32, argv: *const *const u8, env: *const *const u8) -> !;
-		#[cfg(feature = "newlib")]
-		fn init_lwip();
+		//#[cfg(feature = "newlib")]
+		//fn init_lwip();
 		#[cfg(feature = "newlib")]
 		fn init_uhyve_netif() -> i32;
 	}
-
+	info!("initd starts");
 	// initialize LwIP library for newlib-based applications
-	#[cfg(feature = "newlib")]
+	/*#[cfg(feature = "newlib")]
 	unsafe {
 		if has_ipdevice() {
 			isolate_function_strong!(init_lwip());
 		}
-	}
+	}*/
 
 	if environment::is_uhyve() {
 		// Initialize the uhyve-net interface using the IP and gateway addresses specified in hcip, hcmask, hcgateway.
 		info!("HermitCore is running on uhyve!");
 		if has_ipdevice() {
-			#[cfg(feature = "newlib")]
+			/*#[cfg(feature = "newlib")]
 			unsafe {
 				isolate_function_strong!(init_uhyve_netif());
-			}
+			}*/
 
 			#[cfg(not(feature = "newlib"))]
 			let _ = drivers::net::init();
@@ -204,9 +210,33 @@ extern "C" fn initd(_arg: usize) {
 	let (argc, argv, environ) = syscalls::get_application_parameters();
 	user_start!(false);
 
+    arch::processor::fpu_init();
 	unsafe {
 		runtime_entry(argc, argv, environ);
 	}
+}
+
+fn performance_evaluation() {
+	use core::ptr::write_bytes;
+	let buffer = mm::unsafe_allocate(4096, true);
+	//for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
+		let scheduler = core_scheduler();
+		let mut start = arch::processor::get_timer_ticks();
+		for _ in 0..100000000 {
+			//unsafe {isolate_function_strong!(write_bytes(buffer as *mut u8, 0xCDu8, *size))};
+			safe_set_core_scheduler(scheduler);
+		}
+		start = arch::processor::get_timer_ticks() - start;
+
+		info!("{}", start);
+	//}
+}
+
+fn security_evaluation_unsafe_isolation() {
+	let scheduler = core_scheduler();
+	info!("before set scheduler");
+	bad_set_core_scheduler(scheduler);
+	info!("after set scheduler");
 }
 
 /// Entry Point of HermitCore for the Boot Processor
@@ -216,7 +246,7 @@ fn boot_processor_main() -> ! {
 	arch::message_output_init();
 	logging::init();
 
-	info!("Welcome to HermitCore-rs {}", env!("CARGO_PKG_VERSION"));
+	info!("Welcome to HermitCore-rs {} with intra-unikernel isolation", env!("CARGO_PKG_VERSION"));
 	info!("Kernel starts at 0x{:x}", environment::get_base_address());
         info!(
 		"TLS starts at 0x{:x} (size {} Bytes)",

@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use arch;
 use errno::*;
 use synch::semaphore::Semaphore;
-//use mm;
+use mm;
 
 #[no_mangle]
 fn __sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
@@ -21,7 +21,10 @@ fn __sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
 	// Create a new boxed semaphore and return a pointer to the raw memory.
 	let boxed_semaphore = Box::new(Semaphore::new(value as isize));
 	unsafe {
-		*sem = Box::into_raw(boxed_semaphore);
+		let temp = isolate_function_strong!(Box::into_raw(boxed_semaphore));
+		isolation_start!();
+		*sem = temp;
+		isolation_end!();
 	}
 	0
 }
@@ -43,7 +46,7 @@ fn __sys_sem_destroy(sem: *mut Semaphore) -> i32 {
 	// Consume the pointer to the raw memory into a Box again
 	// and drop the Box to free the associated memory.
 	unsafe {
-		Box::from_raw(sem);
+		isolate_function_strong!(Box::from_raw(sem));
 	}
 	0
 }
@@ -63,7 +66,12 @@ fn __sys_sem_post(sem: *const Semaphore) -> i32 {
 	}
 
 	// Get a reference to the given semaphore and release it.
-	let semaphore = unsafe { &*sem };
+	let semaphore = unsafe {
+								isolation_start!();
+								let temp = &*sem;
+								isolation_end!();
+								temp
+							};
 	semaphore.release();
 	0
 }
@@ -83,7 +91,12 @@ fn __sys_sem_trywait(sem: *const Semaphore) -> i32 {
 	}
 
 	// Get a reference to the given semaphore and acquire it in a non-blocking fashion.
-	let semaphore = unsafe { &*sem };
+	let semaphore = unsafe {
+								isolation_start!();
+								let temp = &*sem;
+								isolation_end!();
+								temp
+							};
 	if semaphore.try_acquire() {
 		0
 	} else {
@@ -114,7 +127,12 @@ fn __sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
 	};
 
 	// Get a reference to the given semaphore and wait until we have acquired it or the wakeup time has elapsed.
-	let semaphore = unsafe { &*sem };
+	let semaphore = unsafe {
+								isolation_start!();
+								let temp = &*sem;
+								isolation_end!();
+								temp
+							};
 	if semaphore.acquire(wakeup_time) {
 		0
 	} else {

@@ -114,6 +114,12 @@ impl PageTableEntryFlags {
 		self.insert(pkey_flag);
 		self
 	}
+
+        pub fn set_bits(&mut self, new_bits: usize) -> &mut Self {
+	    let flags: PageTableEntryFlags = PageTableEntryFlags { bits: new_bits };
+            self.insert(flags);
+            self
+        }
 }
 
 /// An entry in either table (PML4, PDPT, PD, PT)
@@ -698,6 +704,18 @@ pub extern "x86-interrupt" fn page_fault_handler(
 	stack_frame: &mut irq::ExceptionStackFrame,
 	error_code: u64,
 ) {
+	unsafe {
+        asm!("xor %eax, %eax;
+              xor %ecx, %ecx;
+              xor %edx, %edx;
+              wrpkru;
+              lfence"
+             :
+             :
+             : "eax", "ecx", "edx"
+             : "volatile");
+        }
+
 	let virtual_address = unsafe { controlregs::cr2() };
 
 	// Anything else is an error!

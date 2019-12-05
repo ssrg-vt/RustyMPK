@@ -293,7 +293,7 @@ macro_rules! kernel_function {
 				: "eax", "ecx", "edx"
 				: "volatile");
 			
-			let tid = core_scheduler().current_task.borrow().id.into();
+			//let tid = core_scheduler().current_task.borrow().id.into();
 	
 			// Save user stack pointer and 
 			// switch stack to the kernel stack
@@ -316,13 +316,14 @@ macro_rules! kernel_function {
 
 			// Save kernel stack pinter and
 			// swiatch back to the user stack
+			/*
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
 				: "rsp"
 				: "volatile");
 			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
-
+			*/
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(user_stack_pointer)
@@ -722,6 +723,42 @@ macro_rules! isolate_function_strong {
 			: "volatile");
 
 		let temp_ret = $p.$f($($x)*);
+
+		asm!("xor %ecx, %ecx;
+			  rdpkru;
+			  and $0, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence;
+			  mov $1, %rsp"
+			:
+			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+
+		temp_ret
+	}};
+
+	($p:tt::$f:ident($($x:tt)*)) => {{
+		use x86_64::kernel::percore::core_scheduler;
+        use config::DEFAULT_STACK_SIZE;
+		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
+		let mut __current_rsp: usize = 0;
+
+		asm!("mov %rsp, $0;
+			  mov $1, %rsp;
+			  xor %ecx, %ecx;
+			  rdpkru;
+			  or $2, %eax;
+			  xor %edx, %edx;
+			  wrpkru;
+			  lfence"
+			: "=r"(__current_rsp)
+			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
+			: "rsp", "eax", "ecx", "edx"
+			: "volatile");
+
+		let temp_ret = $p::$f($($x)*);
 
 		asm!("xor %ecx, %ecx;
 			  rdpkru;

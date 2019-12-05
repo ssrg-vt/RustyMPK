@@ -8,7 +8,7 @@
 use alloc::boxed::Box;
 use errno::*;
 use synch::recmutex::RecursiveMutex;
-//use mm;
+use mm;
 
 #[no_mangle]
 fn __sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
@@ -19,7 +19,10 @@ fn __sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
 	// Create a new boxed recursive mutex and return a pointer to the raw memory.
 	let boxed_mutex = Box::new(RecursiveMutex::new());
 	unsafe {
-		*recmutex = Box::into_raw(boxed_mutex);
+		let temp = isolate_function_strong!(Box::into_raw(boxed_mutex));
+		isolation_start!();
+		*recmutex = temp;
+		isolation_end!();
 	}
 	0
 }
@@ -41,7 +44,7 @@ fn __sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
 	// Consume the pointer to the raw memory into a Box again
 	// and drop the Box to free the associated memory.
 	unsafe {
-		Box::from_raw(recmutex);
+		isolate_function_strong!(Box::from_raw(recmutex));
 	}
 	0
 }
@@ -60,7 +63,12 @@ fn __sys_recmutex_lock(recmutex: *mut RecursiveMutex) -> i32 {
 		return -EINVAL;
 	}
 
-	let mutex = unsafe { &*recmutex };
+	let mutex = unsafe {
+							isolation_start!();
+							let temp = &*recmutex;
+							isolation_end!();
+							temp
+						};
 	mutex.acquire();
 	0
 }
@@ -79,7 +87,12 @@ fn __sys_recmutex_unlock(recmutex: *mut RecursiveMutex) -> i32 {
 		return -EINVAL;
 	}
 
-	let mutex = unsafe { &*recmutex };
+	let mutex = unsafe {
+							isolation_start!();
+							let temp = &*recmutex;
+							isolation_end!();
+							temp
+						};
 	mutex.release();
 	0
 }

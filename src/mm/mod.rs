@@ -77,7 +77,7 @@ fn map_heap<S: PageSize>(virt_addr: usize, size: usize, is_kernel: bool) -> usiz
 
 	if is_kernel {
 		// map the kernel heap
-		flags.normal().writable().execute_disable().pkey(SAFE_MEM_REGION);
+		flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
 	} else {
 		// map the user heap
 		flags.normal().writable().execute_disable();
@@ -158,7 +158,7 @@ pub fn init() {
 		let size = 2 * LargePageSize::SIZE;
 		let start = allocate(size, true);
 		unsafe {
-			::ALLOCATOR.lock().init(start, size);
+			::ALLOCATOR.init(start, size);
 		}
 
 		info!("Kernel heap size: {} MB", size >> 20);
@@ -169,10 +169,27 @@ pub fn init() {
 		info!("User-space heap size: {} MB", user_heap_size >> 20);
 
 		map_addr = kernel_heap_end();
-		map_size = user_heap_size;
+		map_size = user_heap_size + size;
 		unsafe {
-			HEAP_START_ADDRESS = map_addr;
-		}
+                    HEAP_START_ADDRESS = map_addr;
+                    USER_HEAP_START_ADDRESS = HEAP_START_ADDRESS + size;
+                    USER_HEAP_SIZE = user_heap_size;
+                    USER_HEAP_END_ADDRESS = USER_HEAP_START_ADDRESS + USER_HEAP_SIZE; 
+                    info!("User-space heap: {:#x} ~ {:#x}", USER_HEAP_START_ADDRESS, USER_HEAP_END_ADDRESS);
+
+                    // map heap
+                    let counter = map_heap::<LargePageSize>(map_addr, map_size, false);
+                    map_size -= counter;
+                    map_addr += counter;
+
+                    // remap kernel heap
+                    for i in 0..size/LargePageSize::SIZE {
+                        let mut flags = PageTableEntryFlags::empty();
+                        flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
+                        let physical_addr = align_down!(arch::mm::paging::virtual_to_physical(HEAP_START_ADDRESS +  i*LargePageSize::SIZE), LargePageSize::SIZE);
+                        arch::mm::paging::map::<LargePageSize>(HEAP_START_ADDRESS +  i*LargePageSize::SIZE, physical_addr, 1, flags);
+                    }
+                }
 	}
 
 	#[cfg(not(feature = "newlib"))]
@@ -222,27 +239,27 @@ pub fn init() {
 		unsafe {
 			HEAP_START_ADDRESS = virt_addr;
 			// init the kernel heap
-			::ALLOCATOR.lock().init(virt_addr, virt_size);
+			::ALLOCATOR.init(virt_addr, virt_size);
 		}
 
 		map_addr = virt_addr + counter;
 		map_size = virt_size - counter;
-	}
 
-	if has_1gib_pages
-		&& map_size > HugePageSize::SIZE
-		&& (map_addr & !(HugePageSize::SIZE - 1)) == 0
-	{
-		let counter = map_heap::<HugePageSize>(map_addr, map_size, true);
-		map_size -= counter;
-		map_addr += counter;
-	}
+                if has_1gib_pages
+		    && map_size > HugePageSize::SIZE
+	            && (map_addr & !(HugePageSize::SIZE - 1)) == 0
+	        {
+		    let counter = map_heap::<HugePageSize>(map_addr, map_size, true);
+		    map_size -= counter;
+		    map_addr += counter;
+                }
 
-	if map_size > LargePageSize::SIZE {
-		let counter = map_heap::<LargePageSize>(map_addr, map_size, true);
-		map_size -= counter;
-		map_addr += counter;
-	}
+	        if map_size > LargePageSize::SIZE {
+		    let counter = map_heap::<LargePageSize>(map_addr, map_size, true);
+		    map_size -= counter;
+		    map_addr += counter;
+	    }
+        }
 
 	unsafe {
 		HEAP_END_ADDRESS = map_addr;
@@ -269,7 +286,7 @@ pub fn init_user_allocator() {
 		unsafe {
 			USER_HEAP_START_ADDRESS = user_heap_start_addr;
 			USER_HEAP_END_ADDRESS = user_heap_start_addr + user_heap_size;
-			::ALLOCATOR.lock().init(user_heap_start_addr, user_heap_size);
+			::ALLOCATOR.init(user_heap_start_addr, user_heap_size);
 			info!(
 				"User Heap is located at 0x{:x} -- 0x{:x} ({} Bytes mapped)",
 				USER_HEAP_START_ADDRESS, USER_HEAP_END_ADDRESS, user_heap_size

@@ -129,8 +129,31 @@ pub fn install() {
 	idt::set_gate(11, segment_not_present_exception as usize, 0);
 	idt::set_gate(12, stack_segment_fault_exception as usize, 0);
 	idt::set_gate(13, general_protection_exception as usize, 0);
+
+/*
+        /* FIXME: a Dirty Hacky Workaround */
+        use arch::x86_64::mm::virtualmem;
+        use arch::x86_64::mm::paging::*;
+        let curr_page_fault_handler = page_fault_handler as usize;
+        let physical_addr = align_down!(virtual_to_physical(curr_page_fault_handler), BasePageSize::SIZE);
+        let offset = curr_page_fault_handler - physical_addr;
+        let mut remapped_page_fault_handler = virtualmem::allocate_aligned(BasePageSize::SIZE, BasePageSize::SIZE).unwrap();
+        let mut flags = PageTableEntryFlags::empty();
+        flags.set_bits(get_existing_flags::<LargePageSize>(curr_page_fault_handler));
+        flags.remove(PageTableEntryFlags::HUGE_PAGE);
+        map::<BasePageSize>(remapped_page_fault_handler, physical_addr, 1, flags);
+        remapped_page_fault_handler += offset;
+        idt::set_gate(14, remapped_page_fault_handler, 0);
+
+        /* For debugging */
+        {
+            info!("handler old virt: {:#X}, new virt: {:#X}, phy:{:#X}, flags:{:#X}", curr_page_fault_handler, remapped_page_fault_handler, physical_addr, flags.bits());
+            print_page_table_entry::<LargePageSize>(curr_page_fault_handler);
+            print_page_table_entry::<BasePageSize>(remapped_page_fault_handler);
+        }
+*/
 	idt::set_gate(14, paging::page_fault_handler as usize, 0);
-	idt::set_gate(15, reserved_exception as usize, 0);
+        idt::set_gate(15, reserved_exception as usize, 0);
 	idt::set_gate(16, floating_point_exception as usize, 0);
 	idt::set_gate(17, alignment_check_exception as usize, 0);
 	idt::set_gate(18, machine_check_exception as usize, 3);

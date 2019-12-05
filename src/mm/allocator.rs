@@ -10,8 +10,11 @@
 use alloc::alloc::{Alloc, AllocErr, Layout};
 use core::alloc::GlobalAlloc;
 use core::ops::Deref;
+use core::ops::DerefMut;
 use core::ptr::NonNull;
 use core::{mem, ptr};
+use core::cell::UnsafeCell;
+use core::marker::Sync;
 use mm::hole::{Hole, HoleList};
 use mm::kernel_end_address;
 use synch::spinlock::*;
@@ -168,12 +171,18 @@ unsafe impl Alloc for Heap {
 	}
 }
 
-pub struct LockedHeap(SpinlockIrqSave<Heap>);
+//pub struct LockedHeap(SpinlockIrqSave<Heap>);
+static LOCK: SpinlockIrqSave<()> = SpinlockIrqSave::<()>::new(());
+//static LOCK: SpinlockIrqSave = SpinlockIrqSave::new();
+pub struct LockedHeap(UnsafeCell<Heap>);
+
+unsafe impl Sync for LockedHeap {}
+unsafe impl Send for LockedHeap {}
 
 impl LockedHeap {
 	/// Creates an empty heap. All allocate calls will return `None`.
 	pub const fn empty() -> LockedHeap {
-		LockedHeap(SpinlockIrqSave::new(Heap::empty()))
+		LockedHeap(UnsafeCell::new(Heap::empty()))
 	}
 
 	/// Creates a new heap with the given `bottom` and `size`. The bottom address must be valid
@@ -181,7 +190,7 @@ impl LockedHeap {
 	/// anything else. This function is unsafe because it can cause undefined behavior if the
 	/// given address is invalid.
 	pub unsafe fn new(heap_bottom: usize, heap_size: usize) -> LockedHeap {
-		LockedHeap(SpinlockIrqSave::new(Heap {
+		LockedHeap(UnsafeCell::new(Heap {
 			first_block: [0xCC; BOOTSTRAP_HEAP_SIZE],
 			index: 0,
 			bottom: heap_bottom,
@@ -192,13 +201,35 @@ impl LockedHeap {
 }
 
 impl Deref for LockedHeap {
-	type Target = SpinlockIrqSave<Heap>;
+	type Target = Heap;
 
-	fn deref(&self) -> &SpinlockIrqSave<Heap> {
-		&self.0
+	fn deref(&self) -> &Heap {
+		unsafe { &*self.0.get() }
 	}
 }
 
+impl DerefMut for LockedHeap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.0.get() }
+    }
+}
+
+unsafe impl GlobalAlloc for LockedHeap {
+	unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let _guard = LOCK.lock();
+        let data = &mut *self.0.get();
+	    data.allocate_first_fit(layout)
+			.ok()
+			.map_or(ptr::null_mut() as *mut u8, |allocation| allocation.as_ptr())
+	}
+	unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let _guard = LOCK.lock();
+		let data = &mut *self.0.get();
+		data.deallocate(NonNull::new_unchecked(ptr), layout)
+	}
+}
+
+/*
 unsafe impl GlobalAlloc for LockedHeap {
 	unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
 		self.0
@@ -214,3 +245,4 @@ unsafe impl GlobalAlloc for LockedHeap {
 			.deallocate(NonNull::new_unchecked(ptr), layout)
 	}
 }
+*/

@@ -8,7 +8,7 @@
 use arch;
 use errno::*;
 use syscalls::sys_usleep;
-//use mm;
+use mm;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -53,7 +53,12 @@ fn __sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
 		!res.is_null(),
 		"sys_clock_getres called with a zero res parameter"
 	);
-	let result = unsafe { &mut *res };
+	let result = unsafe {
+							isolation_start!();
+							let temp = &mut *res;
+							isolation_end!();
+							temp
+						};
 
 	match clock_id {
 		CLOCK_REALTIME | CLOCK_PROCESS_CPUTIME_ID | CLOCK_THREAD_CPUTIME_ID | CLOCK_MONOTONIC => {
@@ -82,7 +87,12 @@ fn __sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 		!tp.is_null(),
 		"sys_clock_gettime called with a zero tp parameter"
 	);
-	let result = unsafe { &mut *tp };
+	let result = unsafe {
+							isolation_start!();
+							let temp = &mut *tp;
+							isolation_end!();
+							temp
+						};
 
 	match clock_id {
 		CLOCK_REALTIME | CLOCK_MONOTONIC => {
@@ -108,9 +118,8 @@ fn __sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 #[no_mangle]
 pub extern "C" fn sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 	//kernel_enter!("sys_clock_gettime");
-	let ret = kernel_function!(__sys_clock_gettime(clock_id, tp));
+	kernel_function!(__sys_clock_gettime(clock_id, tp))
 	//kernel_exit!("sys_clock_gettime");
-	return ret;
 }
 
 #[no_mangle]
@@ -124,7 +133,12 @@ fn __sys_clock_nanosleep(
 		!rqtp.is_null(),
 		"sys_clock_nanosleep called with a zero rqtp parameter"
 	);
-	let requested_time = unsafe { &*rqtp };
+	let requested_time = unsafe {
+									isolation_start!();
+									let temp = &*rqtp;
+									isolation_end!();
+									temp
+								};
 	if requested_time.tv_sec < 0
 		|| requested_time.tv_nsec < 0
 		|| requested_time.tv_nsec > 999_999_999
@@ -178,7 +192,7 @@ pub extern "C" fn sys_clock_settime(_clock_id: u64, _tp: *const timespec) -> i32
 
 #[no_mangle]
 fn __sys_gettimeofday(tp: *mut timeval, tz: usize) -> i32 {
-	if let Some(result) = unsafe { tp.as_mut() } {
+	if let Some(result) = unsafe { isolate_function_strong!(tp.as_mut()) } {
 		// Return the current time based on the wallclock time when we were booted up
 		// plus the current timer ticks.
 		let microseconds = arch::get_boot_time() + arch::processor::get_timer_ticks();

@@ -8,7 +8,7 @@
 use alloc::boxed::Box;
 use errno::*;
 use synch::spinlock::*;
-//use mm;
+use mm;
 
 pub struct SpinlockContainer<'a> {
 	lock: Spinlock<()>,
@@ -31,7 +31,10 @@ fn __sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
 		guard: None,
 	});
 	unsafe {
-		*lock = Box::into_raw(boxed_container);
+		let ret = isolate_function_strong!(Box::into_raw(boxed_container));
+        isolation_start!();
+		*lock = ret;
+        isolation_end!();
 	}
 	0
 }
@@ -52,7 +55,7 @@ fn __sys_spinlock_destroy(lock: *mut SpinlockContainer) -> i32 {
 
 	// Consume the lock into a box, which is then dropped.
 	unsafe {
-		Box::from_raw(lock);
+		isolate_function_strong!(Box::from_raw(lock));
 	}
 	0
 }
@@ -71,7 +74,12 @@ fn __sys_spinlock_lock(lock: *mut SpinlockContainer) -> i32 {
 		return -EINVAL;
 	}
 
-	let container = unsafe { &mut *lock };
+	let container = unsafe {
+		isolation_start!();
+		let ret = &mut *lock;
+		isolation_end!();
+		ret
+	};
 	assert!(
 		container.guard.is_none(),
 		"Called sys_spinlock_lock when a lock is already held!"
@@ -94,7 +102,12 @@ fn __sys_spinlock_unlock(lock: *mut SpinlockContainer) -> i32 {
 		return -EINVAL;
 	}
 
-	let container = unsafe { &mut *lock };
+	let container = unsafe {
+		isolation_start!();
+		let ret = &mut *lock;
+		isolation_end!();
+		ret
+	};
 	assert!(
 		container.guard.is_some(),
 		"Called sys_spinlock_unlock when no lock is currently held!"
@@ -122,8 +135,11 @@ fn __sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveContainer) -> i32 
 		guard: None,
 	});
 	unsafe {
-		*lock = Box::into_raw(boxed_container);
-	}
+		let ret = isolate_function_strong!(Box::into_raw(boxed_container));
+        isolation_start!();
+		*lock = ret;
+        isolation_end!();
+	};
 	0
 }
 
@@ -143,7 +159,7 @@ fn __sys_spinlock_irqsave_destroy(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 
 	// Consume the lock into a box, which is then dropped.
 	unsafe {
-		Box::from_raw(lock);
+		isolate_function_strong!(Box::from_raw(lock));
 	}
 	0
 }
@@ -162,7 +178,12 @@ fn __sys_spinlock_irqsave_lock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 		return -EINVAL;
 	}
 
-	let container = unsafe { &mut *lock };
+	let container = unsafe {
+		isolation_start!();
+		let ret = &mut *lock;
+		isolation_end!();
+		ret
+	};
 	assert!(
 		container.guard.is_none(),
 		"Called sys_spinlock_irqsave_lock when a lock is already held!"
@@ -185,7 +206,12 @@ fn __sys_spinlock_irqsave_unlock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 		return -EINVAL;
 	}
 
-	let container = unsafe { &mut *lock };
+	let container = unsafe {
+		isolation_start!();
+		let ret = &mut *lock;
+		isolation_end!();
+		ret
+	};
 	assert!(
 		container.guard.is_some(),
 		"Called sys_spinlock_irqsave_unlock when no lock is currently held!"

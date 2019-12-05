@@ -33,6 +33,6 @@ unsafe fn write_byte<T>(buffer: *mut T, byte: T) {
 pub fn kmsg_write_byte(byte: u8) {
 	let index = BUFFER_INDEX.fetch_add(1, Ordering::SeqCst);
 	unsafe {
-		isolate_function_strong!(write_byte(&mut KMSG.buffer[index % KMSG_SIZE], byte));
+		isolate_function_weak!(write_byte(&mut KMSG.buffer[index % KMSG_SIZE], byte));
 	}
 }

@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 use core::ptr::{write_bytes, copy_nonoverlapping};
+use core::mem::size_of;
 use x86::msr::*;
 use mm;
+use arch::x86_64::kernel::processor;
 
 safe_global_var!(static mut LIST: [usize;100] = [0;100]);
 safe_global_var!(static SIZE: usize = 0x1000);
@@ -11,6 +13,7 @@ pub fn unsafe_storage_init() {
     unsafe {
         info!("Init unsafe_storage: {:#X}", unsafe_storage);
         wrmsr(IA32_KERNEL_GSBASE, unsafe_storage as u64);
+        list_add(processor::readgs());
     }
 }
 
@@ -34,7 +37,7 @@ pub fn get_unsafe_storage() -> usize {
 }
 
 pub fn list_add(addr: usize) {
-    static mut IDX: usize = 0;
+    safe_global_var!(static mut IDX: usize = 0);
     unsafe {
         if LIST.iter().any(|v| v == &addr) {
             return;
@@ -114,4 +117,9 @@ pub fn copy_to_safe<T>(dst: *mut T, count: usize) {
 pub fn clear_unsafe_storage()
 {
     unsafe { write_bytes(get_unsafe_storage() as *mut u8, 0x00, SIZE)};
+}
+
+pub fn clear_unsafe_storage2<T>(_: *const T)
+{
+    unsafe { write_bytes(get_unsafe_storage() as *mut u8, 0x00, size_of::<T>())};
 }
