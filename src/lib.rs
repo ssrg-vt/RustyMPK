@@ -91,6 +91,9 @@ use mm::allocator::LockedHeap;
 #[global_allocator]
 static mut ALLOCATOR: LockedHeap = LockedHeap::empty();
 
+//pub static mut UNSAFE_COUNTER: usize = 0;
+//pub static mut SYSCALL_COUNTER: usize = 0;
+
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
 #[no_mangle]
@@ -219,17 +222,17 @@ extern "C" fn initd(_arg: usize) {
 fn performance_evaluation() {
 	use core::ptr::write_bytes;
 	let buffer = mm::unsafe_allocate(4096, true);
-	//for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
+	for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
 		let scheduler = core_scheduler();
 		let mut start = arch::processor::get_timer_ticks();
-		for _ in 0..100000000 {
-			//unsafe {isolate_function_strong!(write_bytes(buffer as *mut u8, 0xCDu8, *size))};
-			safe_set_core_scheduler(scheduler);
+		for _ in 0..1000000 {
+			unsafe {isolate_function_strong!(write_bytes(buffer as *mut u8, 0xCDu8, *size))};
+			//safe_set_core_scheduler(scheduler);
 		}
 		start = arch::processor::get_timer_ticks() - start;
 
 		info!("{}", start);
-	//}
+	}
 }
 
 fn security_evaluation_unsafe_isolation() {

@@ -10,6 +10,7 @@ use arch::percore::*;
 use core::mem;
 use scheduler;
 use scheduler::task::PriorityTaskQueue;
+use mm;
 
 struct CondQueue {
 	queue: PriorityTaskQueue,
@@ -32,19 +33,29 @@ impl Drop for CondQueue {
 }
 
 #[no_mangle]
-unsafe fn __sys_destroy_queue(ptr: usize) -> i32 {
+fn __sys_destroy_queue(ptr: usize) -> i32 {
 	let id = ptr as *mut usize;
 	if id.is_null() {
 		debug!("sys_wait: ivalid address to condition variable");
 		return -1;
 	}
 
-	if *id != 0 {
-		let cond = Box::from_raw((*id) as *mut CondQueue);
+	let temp_id;
+	unsafe {
+		isolation_start!();
+		temp_id = *id;
+		isolation_end!();
+	}
+	if temp_id != 0 {
+		let cond = unsafe { isolate_function_strong!(Box::from_raw(temp_id as *mut CondQueue)) };
 		mem::drop(cond);
 
 		// reset id
-		*id = 0;
+		unsafe {
+			isolation_start!();
+			*id = 0;
+			isolation_end!();
+		}
 	}
 	0
 }
@@ -58,15 +69,26 @@ pub unsafe fn sys_destroy_queue(ptr: usize) -> i32 {
 }
 
 #[no_mangle]
-unsafe fn __sys_notify(ptr: usize, count: i32) -> i32 {
+fn __sys_notify(ptr: usize, count: i32) -> i32 {
 	let id = ptr as *const usize;
-	if id.is_null() || *id == 0 {
+	let temp_id;
+	unsafe {
+		isolation_start!();
+		temp_id = *id;
+		isolation_end!();
+	}
+	if id.is_null() || temp_id == 0 {
 		// invalid argument
 		debug!("sys_notify: invalid address to condition variable");
 		return -1;
 	}
 
-	let cond = &mut *((*id) as *mut CondQueue);
+	let cond;
+	unsafe {
+		isolation_start!();
+		cond = &mut *((*id) as *mut CondQueue);
+		isolation_end!();
+	}
 
 	if count < 0 {
 		// Wake up all task that has been waiting for this condition variable
@@ -97,7 +119,7 @@ pub unsafe fn sys_notify(ptr: usize, count: i32) -> i32 {
 }
 
 #[no_mangle]
-unsafe fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
+fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 	let id = ptr as *mut usize;
 	if id.is_null() {
 		debug!("sys_wait: ivalid address to condition variable");
@@ -105,10 +127,21 @@ unsafe fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 		return -1;
 	}
 
-	if *id == 0 {
+	let temp_id;
+	unsafe {
+		isolation_start!();
+		temp_id = *id;
+		isolation_end!();
+	}
+	if temp_id == 0 {
 		debug!("Create condition variable queue");
 		let queue = Box::new(CondQueue::new(ptr));
-		*id = Box::into_raw(queue) as usize;
+		unsafe {
+			let temp = isolate_function_strong!(Box::into_raw(queue)) as usize;
+			isolation_start!();
+			*id = temp;
+			isolation_end!();
+		}
 	}
 
 	let wakeup_time = if timeout_ns <= 0 {
@@ -124,8 +157,10 @@ unsafe fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 		.lock()
 		.add(core_scheduler.current_task.clone(), wakeup_time);
 
-	{
+	unsafe {
+		isolation_start!();
 		let cond = &mut *((*id) as *mut CondQueue);
+		isolation_end!();
 		cond.queue.push(core_scheduler.current_task.clone());
 	}
 	0

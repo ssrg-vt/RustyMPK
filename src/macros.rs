@@ -203,6 +203,7 @@ macro_rules! print_kernel_stack_pointer {
 
 macro_rules! kernel_enter {
 	($e:expr) => {
+		//unsafe{::SYSCALL_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
 		let kernel_stack_pointer: usize; 
 		let user_stack_pointer: usize;
@@ -277,6 +278,7 @@ macro_rules! kernel_exit {
 
 macro_rules! kernel_function {
 	($f:ident($($x:tt)*)) => {{
+		//unsafe{::SYSCALL_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
 		let mut kernel_stack_pointer: usize;
 		let mut user_stack_pointer: usize;
@@ -345,6 +347,7 @@ macro_rules! kernel_function {
 	}};
 
 	($p:tt.$f:ident($($x:tt)*)) => {{
+		//unsafe{::SYSCALL_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
 		#[allow(unused)]
 		let mut kernel_stack_pointer: usize;
@@ -416,6 +419,7 @@ macro_rules! kernel_function {
 
 macro_rules! isolation_start {
 	() => {
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		asm!("xor %ecx, %ecx;
 		    rdpkru;
 			or $0, %eax;
@@ -446,6 +450,7 @@ macro_rules! isolation_end {
 
 macro_rules! isolation_wrapper {
 	($f:ident($($x:tt)*)) => {{
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		asm!("xor %ecx, %ecx;
 			rdpkru;
 			or $0, %eax;
@@ -559,7 +564,7 @@ macro_rules! unshare_local_var {
 
 macro_rules! isolate_function_weak {
 	($f:ident($($x:tt)*)) => {{
-		//info!("shm enabled");
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
@@ -615,6 +620,7 @@ macro_rules! isolate_function_weak {
 	}};
 
 	($p:tt.$f:ident($($x:tt)*)) => {{
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
@@ -668,6 +674,7 @@ macro_rules! isolate_function_weak {
 
 macro_rules! isolate_function_strong {
 	($f:ident($($x:tt)*)) => {{
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
         use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
@@ -704,6 +711,7 @@ macro_rules! isolate_function_strong {
 	}};
 		
 	($p:tt.$f:ident($($x:tt)*)) => {{
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
         use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
@@ -740,6 +748,7 @@ macro_rules! isolate_function_strong {
 	}};
 
 	($p:tt::$f:ident($($x:tt)*)) => {{
+		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
         use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
@@ -773,28 +782,5 @@ macro_rules! isolate_function_strong {
 			: "volatile");
 
 		temp_ret
-	}};
-}
-
-macro_rules! isolate_runtime {
-	($f:ident($($x:tt)*)) => {{
-		use x86_64::kernel::percore::core_scheduler;
-        use config::DEFAULT_STACK_SIZE;
-		let __user_stack = core_scheduler().current_task.borrow().stacks.user_stack + DEFAULT_STACK_SIZE;
-
-		asm!("mov $0, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $1, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
-			:
-			: "r"(__user_stack),"r"(mm::USER_PERMISSION)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
-
-		$f($($x)*);
-
 	}};
 }

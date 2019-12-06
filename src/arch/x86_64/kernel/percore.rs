@@ -196,15 +196,20 @@ pub fn core_id() -> usize {
 #[no_mangle]
 #[inline]
 pub fn core_scheduler() -> &'static mut PerCoreScheduler {
-	unsafe { &mut *PERCORE.scheduler.get() }
-/* FIXME, for performance?
+//unsafe { &mut *PERCORE.scheduler.get() }
+/* FIXME, for performance?*/
 	if is_unsafe_storage_init() {
 		unsafe { &mut *PERCORE.scheduler.safe_get() }
 	}
 	else {
 		unsafe { &mut *PERCORE.scheduler.get() }
 	}
-*/
+}
+
+#[no_mangle]
+#[inline]
+pub fn safe_core_scheduler() -> &'static mut PerCoreScheduler {
+	unsafe { &mut *PERCORE.scheduler.safe_get() }
 }
 
 #[inline]

@@ -25,7 +25,7 @@ pub type Tid = u32;
 
 #[no_mangle]
 fn __sys_getpid() -> Tid {
-	core_scheduler().current_task.borrow().id.into() as Tid
+	safe_core_scheduler().current_task.borrow().id.into() as Tid
 }
 
 #[no_mangle]
@@ -284,3 +284,32 @@ pub extern "C" fn sys_join(id: Tid) -> i32 {
 	//kernel_exit!("sys_join");
 	return ret;
 }
+/*
+#[no_mangle]
+pub extern "C" fn sys_stat() {
+	unsafe {
+		asm!("xor %eax, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				: 
+				: "eax", "ecx", "edx"
+				: "volatile");
+
+		info!("UNSAFE: {}", ::UNSAFE_COUNTER);
+		info!("SYSCALL: {}", ::SYSCALL_COUNTER);
+
+		asm!("mov $$0xfc, %eax;
+				  xor %ecx, %ecx;
+				  xor %edx, %edx;
+				  wrpkru;
+				  lfence"
+				: 
+				:
+				: "eax", "ecx", "edx"
+				: "volatile");
+	}
+}
+*/
