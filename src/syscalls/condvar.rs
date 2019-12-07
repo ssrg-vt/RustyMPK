@@ -136,8 +136,8 @@ fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 	if temp_id == 0 {
 		debug!("Create condition variable queue");
 		let queue = Box::new(CondQueue::new(ptr));
+		let temp = Box::into_raw(queue) as usize;
 		unsafe {
-			let temp = isolate_function_strong!(Box::into_raw(queue)) as usize;
 			isolation_start!();
 			*id = temp;
 			isolation_end!();

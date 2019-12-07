@@ -30,8 +30,8 @@ fn __sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
 		lock: Spinlock::new(()),
 		guard: None,
 	});
+	let ret = Box::into_raw(boxed_container);
 	unsafe {
-		let ret = isolate_function_strong!(Box::into_raw(boxed_container));
         isolation_start!();
 		*lock = ret;
         isolation_end!();
@@ -134,8 +134,8 @@ fn __sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveContainer) -> i32 
 		lock: SpinlockIrqSave::new(()),
 		guard: None,
 	});
+	let ret = Box::into_raw(boxed_container);
 	unsafe {
-		let ret = isolate_function_strong!(Box::into_raw(boxed_container));
         isolation_start!();
 		*lock = ret;
         isolation_end!();

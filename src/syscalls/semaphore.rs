@@ -20,8 +20,8 @@ fn __sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
 
 	// Create a new boxed semaphore and return a pointer to the raw memory.
 	let boxed_semaphore = Box::new(Semaphore::new(value as isize));
+	let temp = Box::into_raw(boxed_semaphore);
 	unsafe {
-		let temp = isolate_function_strong!(Box::into_raw(boxed_semaphore));
 		isolation_start!();
 		*sem = temp;
 		isolation_end!();
@@ -45,9 +45,9 @@ fn __sys_sem_destroy(sem: *mut Semaphore) -> i32 {
 
 	// Consume the pointer to the raw memory into a Box again
 	// and drop the Box to free the associated memory.
-	unsafe {
+	/*unsafe {
 		isolate_function_strong!(Box::from_raw(sem));
-	}
+	}*/
 	0
 }
 

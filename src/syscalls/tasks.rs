@@ -231,7 +231,7 @@ fn __sys_spawn(
 	prio: u8,
 	selector: isize,
 ) -> i32 {
-	safe_global_var!(static CORE_COUNTER: AtomicUsize = AtomicUsize::new(0));
+	safe_global_var!(static CORE_COUNTER: AtomicUsize = AtomicUsize::new(1));
 
 	let core_id = if selector < 0 {
 		// use Round Robin to schedule the cores

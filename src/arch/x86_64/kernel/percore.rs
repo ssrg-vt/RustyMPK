@@ -167,7 +167,7 @@ impl<T: Is32BitVariable> PerCoreVariableMethods<T> for PerCoreVariable<T> {
 			isolation_end!();
 		}
 		copy_to_safe(gs as *mut PerCoreVariables, 1);			
-		clear_unsafe_storage2(gs as *const PerCoreVariables);
+		//clear_unsafe_storage2(gs as *const PerCoreVariables);
 	}
 }
 

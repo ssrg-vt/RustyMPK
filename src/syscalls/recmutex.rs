@@ -18,8 +18,8 @@ fn __sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
 
 	// Create a new boxed recursive mutex and return a pointer to the raw memory.
 	let boxed_mutex = Box::new(RecursiveMutex::new());
+	let temp = Box::into_raw(boxed_mutex);
 	unsafe {
-		let temp = isolate_function_strong!(Box::into_raw(boxed_mutex));
 		isolation_start!();
 		*recmutex = temp;
 		isolation_end!();
@@ -43,9 +43,9 @@ fn __sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
 
 	// Consume the pointer to the raw memory into a Box again
 	// and drop the Box to free the associated memory.
-	unsafe {
+	/*unsafe {
 		isolate_function_strong!(Box::from_raw(recmutex));
-	}
+	}*/
 	0
 }
 
