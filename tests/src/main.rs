@@ -112,8 +112,8 @@ fn test_threading() -> Result<(), ()> {
 }
 
 fn main() {
-	test_syscall_cost2();
-	test_syscall_cost2();
+	//test_syscall_cost2();
+	//test_syscall_cost2();
     //test_threading();
 
 	test_syscall_cost2();

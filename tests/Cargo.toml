@@ -9,6 +9,15 @@ publish = false
 rayon = "1.2.0"
 http = "0.1.18"
 
+# The development profile, used for `cargo build`.
+[profile.dev]
+opt-level = 1      # controls the `--opt-level` the compiler builds with
+debug = true       # controls whether the compiler passes `-C debuginfo`
+                   # a value of `true` is equivalent to `2`
+rpath = false      # controls whether the compiler passes `-C rpath`
+lto = false         # controls `-C lto` for binaries and staticlibs
+debug-assertions = true # controls whether debug assertions are enabled
+
 [profile.release]
 opt-level = 3
 debug = false
