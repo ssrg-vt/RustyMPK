@@ -144,7 +144,7 @@ pub fn get_image_size() -> usize {
 			isolation_start!();
 			copy_from_safe(BOOT_INFO, 1);
 			let image_size = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).image_size) as usize;
-			isolation_start!();
+			isolation_end!();
 			clear_unsafe_storage();
 
 			return image_size;
@@ -346,7 +346,7 @@ pub fn message_output_init() {
 			copy_from_safe(BOOT_INFO, 1);
 			isolation_start!();
 			COM1.port_address = intrinsics::volatile_load(&(*(unsafe_storage as *const BootInfo)).uartport);
-			isolation_start!();
+			isolation_end!();
 			clear_unsafe_storage();
 		}
 	}
