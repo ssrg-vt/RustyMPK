@@ -49,9 +49,7 @@ fn __sys_getprio(id: *const Tid) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_getprio(id: *const Tid) -> i32 {
-	//kernel_enter!("sys_getprio");
 	let ret = kernel_function!(__sys_getprio(id));
-	//kernel_exit!("sys_getprio");
 	return ret;
 }
 
@@ -136,9 +134,7 @@ fn __sys_usleep(usecs: u64) {
 
 #[no_mangle]
 pub extern "C" fn sys_usleep(usecs: u64) {
-	//kernel_enter!("sys_usleep");
 	kernel_function!(__sys_usleep(usecs));
-	//kernel_exit!("sys_usleep");
 }
 
 #[no_mangle]
@@ -193,9 +189,7 @@ fn __sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
 #[cfg(feature = "newlib")]
 #[no_mangle]
 pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize) -> i32 {
-	//kernel_enter!("sys_clone");
 	let ret = kernel_function!(__sys_clone(id, func, arg));
-	//kernel_exit!("sys_clone");
 	return ret;
 }
 
@@ -263,9 +257,7 @@ pub extern "C" fn sys_spawn(
 	prio: u8,
 	selector: isize,
 ) -> i32 {
-	//kernel_enter!("sys_spawn");
 	let ret = kernel_function!(__sys_spawn(id, func, arg, prio, selector));
-	//kernel_exit!("sys_spawn");
 	return ret;
 }
 
@@ -279,9 +271,7 @@ fn __sys_join(id: Tid) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_join(id: Tid) -> i32 {
-	//kernel_enter!("sys_join");
 	let ret = kernel_function!(__sys_join(id));
-	//kernel_exit!("sys_join");
 	return ret;
 }
 /*

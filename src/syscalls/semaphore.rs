@@ -31,9 +31,7 @@ fn __sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_sem_init(sem: *mut *mut Semaphore, value: u32) -> i32 {
-	//kernel_enter!("sys_sem_init");
 	let ret = kernel_function!(__sys_sem_init(sem, value));
-	//kernel_exit!("sys_sem_init");
 	return ret;
 }
 
@@ -53,9 +51,7 @@ fn __sys_sem_destroy(sem: *mut Semaphore) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_sem_destroy(sem: *mut Semaphore) -> i32 {
-	//kernel_enter!("sys_sem_destroy");
 	let ret = kernel_function!(__sys_sem_destroy(sem: *mut Semaphore));
-	//kernel_exit!("sys_sem_destroy");
 	return ret;
 }
 
@@ -78,9 +74,7 @@ fn __sys_sem_post(sem: *const Semaphore) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_sem_post(sem: *const Semaphore) -> i32 {
-	//kernel_enter!("sys_sem_post");
 	let ret = kernel_function!(__sys_sem_post(sem: *const Semaphore));
-	//kernel_exit!("sys_sem_post");
 	return ret;
 }
 
@@ -106,9 +100,7 @@ fn __sys_sem_trywait(sem: *const Semaphore) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_sem_trywait(sem: *const Semaphore) -> i32 {
-	//kernel_enter!("sys_sem_trywait");
 	let ret = kernel_function!(__sys_sem_trywait(sem));
-	//kernel_exit!("sys_sem_trywait");
 	return ret;
 }
 
@@ -142,9 +134,7 @@ fn __sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_sem_timedwait(sem: *const Semaphore, ms: u32) -> i32 {
-	//kernel_enter!("sys_sem_timedwait");
 	return kernel_function!(__sys_sem_timedwait(sem, ms));
-	//kernel_exit!("sys_sem_timedwait");
 }
 
 #[no_mangle]

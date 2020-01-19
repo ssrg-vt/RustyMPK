@@ -31,8 +31,6 @@ fn __sys_getpagesize() -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_getpagesize() -> i32 {
-	//kernel_enter!("sys_getpagesize");
 	let ret = kernel_function!(__sys_getpagesize());
-	//kernel_exit!("sys_getpagesize");
 	return ret;
 }

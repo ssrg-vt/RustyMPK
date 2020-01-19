@@ -34,9 +34,7 @@ fn __sys_lwip_register_tcpip_task(id: Tid) {
 
 #[no_mangle]
 pub extern "C" fn sys_lwip_register_tcpip_task(id: Tid) {
-	//kernel_enter!("sys_lwip_register_tcpip_task");
 	kernel_function!(__sys_lwip_register_tcpip_task(id));
-	//kernel_exit!("sys_lwip_register_tcpip_task");
 }
 
 #[no_mangle]
@@ -46,9 +44,7 @@ fn __sys_lwip_get_errno() -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_lwip_get_errno() -> i32 {
-	//kernel_enter!("sys_lwip_get_errno");
 	let lwip_errno = kernel_function!(__sys_lwip_get_errno());
-	//kernel_exit!("sys_lwip_get_errno");
 	return lwip_errno;
 }
 
@@ -59,9 +55,7 @@ fn __sys_lwip_set_errno(errno: i32) {
 
 #[no_mangle]
 pub extern "C" fn sys_lwip_set_errno(errno: i32) {
-	//kernel_enter!("sys_lwip_set_errno");
 	kernel_function!(__sys_lwip_set_errno(errno));
-	//kernel_exit!("sys_lwip_set_errno");
 }
 
 #[no_mangle]
@@ -74,9 +68,7 @@ fn __sys_acquire_putchar_lock() {
 
 #[no_mangle]
 pub extern "C" fn sys_acquire_putchar_lock() {
-	//kernel_enter!("sys_acquire_putchar_lock");
 	kernel_function!(__sys_acquire_putchar_lock());
-	//kernel_exit!("sys_acquire_putchar_lock");
 }
 
 #[no_mangle]
@@ -86,9 +78,7 @@ fn __sys_putchar(character: u8) {
 
 #[no_mangle]
 pub extern "C" fn sys_putchar(character: u8) {
-	//kernel_enter!("sys_putchar");
 	kernel_function!(__sys_putchar(character));
-	//kernel_exit!("sys_putchar");
 }
 
 #[no_mangle]
@@ -101,7 +91,5 @@ fn __sys_release_putchar_lock() {
 
 #[no_mangle]
 pub extern "C" fn sys_release_putchar_lock() {
-	//kernel_enter!("sys_release_putchar_lock");
 	kernel_function!(__sys_release_putchar_lock());
-	//kernel_exit!("sys_release_putchar_lock");
 }

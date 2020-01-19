@@ -29,9 +29,7 @@ fn __sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_init(recmutex: *mut *mut RecursiveMutex) -> i32 {
-	//kernel_enter!("sys_recmutex_init");
 	let ret = kernel_function!(__sys_recmutex_init(recmutex));
-	//kernel_exit!("sys_recmutex_init");
 	return ret;
 }
 
@@ -51,9 +49,7 @@ fn __sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_destroy(recmutex: *mut RecursiveMutex) -> i32 {
-	//kernel_enter!("sys_recmutex_destroy");
 	let ret = kernel_function!(__sys_recmutex_destroy(recmutex));
-	//kernel_exit!("sys_recmutex_destroy");
 	return ret;
 }
 
@@ -75,9 +71,7 @@ fn __sys_recmutex_lock(recmutex: *mut RecursiveMutex) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_lock(recmutex: *mut RecursiveMutex) -> i32 {
-	//kernel_enter!("sys_recmutex_lock");
 	let ret =  kernel_function!(__sys_recmutex_lock(recmutex));
-	//kernel_exit!("sys_recmutex_lock");
 	return ret;
 }
 
@@ -99,8 +93,6 @@ fn __sys_recmutex_unlock(recmutex: *mut RecursiveMutex) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_recmutex_unlock(recmutex: *mut RecursiveMutex) -> i32 {
-	//kernel_enter!("sys_recmutex_unlock");
 	let ret = kernel_function!(__sys_recmutex_unlock(recmutex));
-	//kernel_exit!("sys_recmutex_unlock");
 	return ret;
 }

@@ -75,9 +75,7 @@ fn __sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_clock_getres(clock_id: u64, res: *mut timespec) -> i32 {
-	//kernel_enter!("sys_clock_getres");
 	let ret = kernel_function!(__sys_clock_getres(clock_id, res));
-	//kernel_exit!("sys_clock_getres");
 	return ret;
 }
 
@@ -117,9 +115,7 @@ fn __sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_clock_gettime(clock_id: u64, tp: *mut timespec) -> i32 {
-	//kernel_enter!("sys_clock_gettime");
 	kernel_function!(__sys_clock_gettime(clock_id, tp))
-	//kernel_exit!("sys_clock_gettime");
 }
 
 #[no_mangle]
@@ -177,9 +173,7 @@ pub extern "C" fn sys_clock_nanosleep(
 	rqtp: *const timespec,
 	rmtp: *mut timespec,
 ) -> i32 {
-	//kernel_enter!("sys_clock_nanosleep");
 	let ret = kernel_function!(__sys_clock_nanosleep(clock_id, flags, rqtp, rmtp));
-	//kernel_exit!("sys_clock_nanosleep");
 	return ret;
 }
 
@@ -209,9 +203,7 @@ fn __sys_gettimeofday(tp: *mut timeval, tz: usize) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_gettimeofday(tp: *mut timeval, tz: usize) -> i32 {
-	//kernel_enter!("sys_gettimeofday");
 	let ret =  kernel_function!(__sys_gettimeofday(tp, tz));
-	//kernel_exit!("sys_gettimeofday");
 	return ret;
 }
 

@@ -41,9 +41,7 @@ fn __sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_init(lock: *mut *mut SpinlockContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_init");
 	let ret = kernel_function!(__sys_spinlock_init(lock));
-	//kernel_exit!("sys_spinlock_init");
 	return ret;
 }
 
@@ -62,9 +60,7 @@ fn __sys_spinlock_destroy(lock: *mut SpinlockContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_destroy(lock: *mut SpinlockContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_destroy");
 	let ret = kernel_function!(__sys_spinlock_destroy(lock));
-	//kernel_exit!("sys_spinlock_destroy");
 	return ret;
 }
 
@@ -90,9 +86,7 @@ fn __sys_spinlock_lock(lock: *mut SpinlockContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_lock(lock: *mut SpinlockContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_lock");
 	let ret = kernel_function!(__sys_spinlock_lock(lock));
-	//kernel_exit!("sys_spinlock_lock");
 	return ret;
 }
 
@@ -118,9 +112,7 @@ fn __sys_spinlock_unlock(lock: *mut SpinlockContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_unlock(lock: *mut SpinlockContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_unlock");
 	let ret = kernel_function!(__sys_spinlock_unlock(lock));
-	//kernel_exit!("sys_spinlock_unlock");
 	return ret;
 }
 
@@ -145,9 +137,7 @@ fn __sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveContainer) -> i32 
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_init(lock: *mut *mut SpinlockIrqSaveContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_irqsave_init");
 	let ret = kernel_function!(__sys_spinlock_irqsave_init(lock));
-	//kernel_exit!("sys_spinlock_irqsave_init");
 	return ret;
 }
 
@@ -166,9 +156,7 @@ fn __sys_spinlock_irqsave_destroy(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_destroy(lock: *mut SpinlockIrqSaveContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_irqsave_destroy");
 	let ret = kernel_function!(__sys_spinlock_irqsave_destroy(lock));
-	//kernel_exit!("sys_spinlock_irqsave_destroy");
 	return ret;
 }
 
@@ -194,9 +182,7 @@ fn __sys_spinlock_irqsave_lock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_lock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_irqsave_lock");
 	let ret = kernel_function!(__sys_spinlock_irqsave_lock(lock));
-	//kernel_exit!("sys_spinlock_irqsave_lock");
 	return ret;
 }
 
@@ -222,8 +208,6 @@ fn __sys_spinlock_irqsave_unlock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn sys_spinlock_irqsave_unlock(lock: *mut SpinlockIrqSaveContainer) -> i32 {
-	//kernel_enter!("sys_spinlock_irqsave_unlock");
 	let ret = kernel_function!(__sys_spinlock_irqsave_unlock(lock));
-	//kernel_exit!("sys_spinlock_irqsave_unlock");
 	return ret;
 }

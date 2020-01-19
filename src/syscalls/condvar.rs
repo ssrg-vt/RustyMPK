@@ -62,9 +62,7 @@ fn __sys_destroy_queue(ptr: usize) -> i32 {
 
 #[no_mangle]
 pub unsafe fn sys_destroy_queue(ptr: usize) -> i32 {
-	//kernel_enter!("sys_destroy_queue");
 	let ret = kernel_function!(__sys_destroy_queue(ptr));
-	//kernel_exit!("sys_destroy_queue");
 	return ret;
 }
 
@@ -112,9 +110,7 @@ fn __sys_notify(ptr: usize, count: i32) -> i32 {
 
 #[no_mangle]
 pub unsafe fn sys_notify(ptr: usize, count: i32) -> i32 {
-	//kernel_enter!("sys_notify");
 	let ret = kernel_function!(__sys_notify(ptr, count));
-	//kernel_exit!("sys_notify");
 	return ret;
 }
 
@@ -168,9 +164,7 @@ fn __sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
 
 #[no_mangle]
 pub unsafe fn sys_add_queue(ptr: usize, timeout_ns: i64) -> i32 {
-	//kernel_enter!("sys_add_queue");
 	let ret = kernel_function!(__sys_add_queue(ptr, timeout_ns));
-	//kernel_exit!("sys_add_queue");
 	return ret;
 }
 
@@ -183,8 +177,6 @@ fn __sys_wait(_ptr: usize) -> i32 {
 
 #[no_mangle]
 pub fn sys_wait(_ptr: usize) -> i32 {
-	//kernel_enter!("sys_wait");
 	let ret = kernel_function!(__sys_wait(_ptr));
-	//kernel_exit!("sys_wait");
 	return ret;
 }

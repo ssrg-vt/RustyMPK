@@ -30,9 +30,7 @@ fn __sys_rand() -> u32 {
 
 #[no_mangle]
 pub extern "C" fn sys_rand() -> u32 {
-	//kernel_enter!("sys_rand");
 	let ret = kernel_function!(__sys_rand());
-	//kernel_exit!("sys_rand");
 	return ret;
 }
 

@@ -16,9 +16,7 @@ fn __sys_get_processor_count() -> usize {
 
 #[no_mangle]
 pub extern "C" fn sys_get_processor_count() -> usize {
-        //kernel_enter!("sys_get_processor_count");
         let ret = kernel_function!(__sys_get_processor_count());
-        //kernel_exit!("sys_get_processor_count");
         return ret;
 }
 
@@ -30,8 +28,6 @@ fn __sys_get_processor_frequency() -> u16 {
 
 #[no_mangle]
 pub extern "C" fn sys_get_processor_frequency() -> u16 {
-        //kernel_enter!("sys_get_processor_frequency");
         let ret = kernel_function!(__sys_get_processor_frequency());
-        //kernel_exit!("sys_get_processor_frequency");
         return ret;
 }

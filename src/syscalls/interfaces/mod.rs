@@ -84,9 +84,7 @@ pub trait SyscallInterface: Send + Sync {
 	}
 
 	fn write(&self, fd: i32, buf: *const u8, len: usize) -> isize {
-		//kernel_enter!("write");
 		let ret = kernel_function!(self.__write(fd, buf, len));
-		//kernel_exit!("write");
 		return ret;
 	}
 
