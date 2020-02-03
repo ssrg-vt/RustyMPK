@@ -166,29 +166,27 @@ pub fn init() {
 			total_memory_size() - kernel_end_address() - reserved_space - 3 * LargePageSize::SIZE,
 			LargePageSize::SIZE
 		);
-		info!("User-space heap size: {} MB", user_heap_size >> 20);
 
 		map_addr = kernel_heap_end();
 		map_size = user_heap_size + size;
 		unsafe {
-                    HEAP_START_ADDRESS = map_addr;
-                    USER_HEAP_START_ADDRESS = HEAP_START_ADDRESS + size;
-                    USER_HEAP_SIZE = user_heap_size;
-                    USER_HEAP_END_ADDRESS = USER_HEAP_START_ADDRESS + USER_HEAP_SIZE; 
-                    info!("User-space heap: {:#x} ~ {:#x}", USER_HEAP_START_ADDRESS, USER_HEAP_END_ADDRESS);
+                        HEAP_START_ADDRESS = map_addr;
+                        USER_HEAP_START_ADDRESS = HEAP_START_ADDRESS + size;
+                        USER_HEAP_SIZE = user_heap_size;
+                        USER_HEAP_END_ADDRESS = USER_HEAP_START_ADDRESS + USER_HEAP_SIZE; 
 
-                    // map heap
-                    let counter = map_heap::<LargePageSize>(map_addr, map_size, false);
-                    map_size -= counter;
-                    map_addr += counter;
+                        // map heap
+                        let counter = map_heap::<LargePageSize>(map_addr, map_size, false);
+                        map_size -= counter;
+                        map_addr += counter;
 
-                    // remap kernel heap
-                    for i in 0..size/LargePageSize::SIZE {
-                        let mut flags = PageTableEntryFlags::empty();
-                        flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
-                        let physical_addr = align_down!(arch::mm::paging::virtual_to_physical(HEAP_START_ADDRESS +  i*LargePageSize::SIZE), LargePageSize::SIZE);
-                        arch::mm::paging::map::<LargePageSize>(HEAP_START_ADDRESS +  i*LargePageSize::SIZE, physical_addr, 1, flags);
-                    }
+                        // remap kernel heap
+                        for i in 0..size/LargePageSize::SIZE {
+                                let mut flags = PageTableEntryFlags::empty();
+                                flags.normal().writable().execute_disable().pkey(UNSAFE_MEM_REGION);
+                                let physical_addr = align_down!(arch::mm::paging::virtual_to_physical(HEAP_START_ADDRESS +  i*LargePageSize::SIZE), LargePageSize::SIZE);
+                                arch::mm::paging::map::<LargePageSize>(HEAP_START_ADDRESS +  i*LargePageSize::SIZE, physical_addr, 1, flags);
+                        }
                 }
 	}
 
@@ -249,16 +247,16 @@ pub fn init() {
 		    && map_size > HugePageSize::SIZE
 	            && (map_addr & !(HugePageSize::SIZE - 1)) == 0
 	        {
-		    let counter = map_heap::<HugePageSize>(map_addr, map_size, true);
-		    map_size -= counter;
-		    map_addr += counter;
+            	        let counter = map_heap::<HugePageSize>(map_addr, map_size, true);
+		        map_size -= counter;
+		        map_addr += counter;
                 }
 
 	        if map_size > LargePageSize::SIZE {
-		    let counter = map_heap::<LargePageSize>(map_addr, map_size, true);
-		    map_size -= counter;
-		    map_addr += counter;
-	    }
+		        let counter = map_heap::<LargePageSize>(map_addr, map_size, true);
+		        map_size -= counter;
+		        map_addr += counter;
+	        }
         }
 
 	unsafe {
@@ -272,8 +270,8 @@ pub fn init() {
 }
 
 pub fn init_user_allocator() {
-    #[cfg(not(feature = "newlib"))]
-    {
+        #[cfg(not(feature = "newlib"))]
+        {
 		// User Heap Initialization
 		let user_heap_size: usize = unsafe {USER_HEAP_SIZE};
 		let user_heap_start_addr = arch::mm::virtualmem::allocate_aligned(user_heap_size, LargePageSize::SIZE).unwrap();
@@ -287,12 +285,8 @@ pub fn init_user_allocator() {
 			USER_HEAP_START_ADDRESS = user_heap_start_addr;
 			USER_HEAP_END_ADDRESS = user_heap_start_addr + user_heap_size;
 			::ALLOCATOR.init(user_heap_start_addr, user_heap_size);
-			info!(
-				"User Heap is located at 0x{:x} -- 0x{:x} ({} Bytes mapped)",
-				USER_HEAP_START_ADDRESS, USER_HEAP_END_ADDRESS, user_heap_size
-			);
 		}
-    }
+        }
 }
 pub fn print_information() {
 	arch::mm::physicalmem::print_information();

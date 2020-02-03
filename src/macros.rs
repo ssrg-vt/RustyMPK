@@ -35,91 +35,79 @@ macro_rules! println {
 }
 
 macro_rules! safe_global_var {
-	/* read only */
+	/* immutable */
 	(static $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".safe_data"]
-        static $name: $var_type = $val;
-    };
-    /* uninitialized */
-    (static $name:ident: $var_type:ty) => {
-        #[link_section = ".safe_data"]
-        static $name: $var_type = 0;
-    };
-    /* pub */
-    (pub static $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".safe_data"]
-        pub static $name: $var_type = $val;
-    };
-    /* pub uninitialized */
-    (pub static $name:ident: $var_type:ty) => {
-        #[link_section = ".safe_data"]
-        pub static $name: $var_type = 0;
+                #[link_section = ".safe_data"]
+                static $name: $var_type = $val;
+        };
+        (static $name:ident: $var_type:ty) => {
+                #[link_section = ".safe_data"]
+                static $name: $var_type = 0;
+        };
+        (pub static $name:ident: $var_type:ty = $val:expr) => {
+                #[link_section = ".safe_data"]
+                pub static $name: $var_type = $val;
+        };
+        (pub static $name:ident: $var_type:ty) => {
+                #[link_section = ".safe_data"]
+                pub static $name: $var_type = 0;
 	};
 
-	/* writable */
-    (static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".safe_data"]
-        static mut $name: $var_type = $val;
-    };
-    /* uninitialized */
-    (static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".safe_data"]
-        static mut $name: $var_type = 0;
-    };
-    /* pub */
-    (pub static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".safe_data"]
-        pub static mut $name: $var_type = $val;
-    };
-    /* pub uninitialized */
-    (pub static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".safe_data"]
-        pub static mut $name: $var_type = 0;
-    };
+	/* mutable */
+        (static mut $name:ident: $var_type:ty = $val:expr) => {
+                #[link_section = ".safe_data"]
+                static mut $name: $var_type = $val;
+        };
+        (static mut $name:ident: $var_type:ty) => {
+                #[link_section = ".safe_data"]
+                static mut $name: $var_type = 0;
+        };
+        (pub static mut $name:ident: $var_type:ty = $val:expr) => {
+                #[link_section = ".safe_data"]
+                pub static mut $name: $var_type = $val;
+        };
+        (pub static mut $name:ident: $var_type:ty) => {
+                #[link_section = ".safe_data"]
+                pub static mut $name: $var_type = 0;
+        };
 }
 
 macro_rules! unsafe_global_var {
-	/* read only */
+	/* immutable */
 	(static $name:ident: $var_type:ty = $val:expr) => {
 		#[link_section = ".unsafe_data"]
 		static $name: $var_type = $val;
 	};
-	/* uninitialized */
 	(static $name:ident: $var_type:ty) => {
 		#[link_section = ".unsafe_data"]
 		static $name: $var_type = 0;
 	};
-	/* pub */
 	(pub static $name:ident: $var_type:ty = $val:expr) => {
 		#[link_section = ".unsafe_data"]
 		pub static $name: $var_type = $val;
 	};
-	/* pub uninitialized */
 	(pub static $name:ident: $var_type:ty) => {
 		#[link_section = ".unsafe_data"]
 		pub static $name: $var_type = 0;
 	};
 
-	/* writable */
-    (static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".unsafe_data"]
-        static mut $name: $var_type = $val;
-    };
-    /* uninitialized */
-    (static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".unsafe_data"]
-        static mut $name: $var_type = 0;
-    };
-    /* pub */
-    (pub static mut $name:ident: $var_type:ty = $val:expr) => {
-        #[link_section = ".unsafe_data"]
-        pub static mut $name: $var_type = $val;
-    };
-    /* pub uninitialized */
-    (pub static mut $name:ident: $var_type:ty) => {
-        #[link_section = ".unsafe_data"]
-        pub static mut $name: $var_type = 0;
-    };
+	/* mutable */
+        (static mut $name:ident: $var_type:ty = $val:expr) => {
+                #[link_section = ".unsafe_data"]
+                static mut $name: $var_type = $val;
+        };
+        (static mut $name:ident: $var_type:ty) => {
+                #[link_section = ".unsafe_data"]
+                static mut $name: $var_type = 0;
+        };
+        (pub static mut $name:ident: $var_type:ty = $val:expr) => {
+                #[link_section = ".unsafe_data"]
+                pub static mut $name: $var_type = $val;
+        };
+        (pub static mut $name:ident: $var_type:ty) => {
+                #[link_section = ".unsafe_data"]
+                pub static mut $name: $var_type = 0;
+        };
 }
 
 macro_rules! user_start {
@@ -129,7 +117,6 @@ macro_rules! user_start {
 		#[allow(unused)]
 		unsafe {
 			// Store the kernel stack pointer and switch to the user stack
-
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
@@ -294,8 +281,6 @@ macro_rules! kernel_function {
 				: 
 				: "eax", "ecx", "edx"
 				: "volatile");
-			
-			//let tid = core_scheduler().current_task.borrow().id.into();
 	
 			// Save user stack pointer and 
 			// switch stack to the kernel stack
@@ -312,9 +297,7 @@ macro_rules! kernel_function {
 				: "rsp"
 				: "volatile");
 
-			//println!("[{}]enter: {}\\", tid, stringify!($f));
 			let temp_ret = $f($($x)*);
-			//println!("[{}]exit : {}/", tid, stringify!($f));
 
 			// Save kernel stack pinter and
 			// swiatch back to the user stack
@@ -365,8 +348,6 @@ macro_rules! kernel_function {
 				: 
 				: "eax", "ecx", "edx"
 				: "volatile");
-			
-			let tid = core_scheduler().current_task.borrow().id.into();
 	
 			// Save user stack pointer and 
 			// switch stack to the kernel stack
@@ -383,9 +364,7 @@ macro_rules! kernel_function {
 				: "rsp"
 				: "volatile");
 
-			//println!("[{}]enter: {}\\", tid, stringify!($f));
 			let temp_ret = $p.$f($($x)*);
-			//println!("[{}]exit : {}/", tid, stringify!($f));
 
 			// Save kernel stack pinter and
 			// swiatch back to the user stack
@@ -624,7 +603,7 @@ macro_rules! isolate_function_weak {
 		use x86_64::kernel::percore::core_scheduler;
 		use x86_64::mm::paging::{BasePageSize, set_pkey_on_page_table_entry};
 		use mm::{SAFE_MEM_REGION, SHARED_MEM_REGION};
-        use config::DEFAULT_STACK_SIZE;
+                use config::DEFAULT_STACK_SIZE;
 
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rbp: usize = 0;
@@ -676,7 +655,7 @@ macro_rules! isolate_function_strong {
 	($f:ident($($x:tt)*)) => {{
 		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
-        use config::DEFAULT_STACK_SIZE;
+                use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rsp: usize = 0;
 
@@ -713,7 +692,7 @@ macro_rules! isolate_function_strong {
 	($p:tt.$f:ident($($x:tt)*)) => {{
 		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
-        use config::DEFAULT_STACK_SIZE;
+                use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rsp: usize = 0;
 
@@ -750,7 +729,7 @@ macro_rules! isolate_function_strong {
 	($p:tt::$f:ident($($x:tt)*)) => {{
 		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		use x86_64::kernel::percore::core_scheduler;
-        use config::DEFAULT_STACK_SIZE;
+                use config::DEFAULT_STACK_SIZE;
 		let __isolated_stack = core_scheduler().current_task.borrow().stacks.isolated_stack + DEFAULT_STACK_SIZE;
 		let mut __current_rsp: usize = 0;
 

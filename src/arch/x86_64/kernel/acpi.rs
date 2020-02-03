@@ -146,10 +146,10 @@ impl<'a> AcpiTable<'a> {
 		// Return the table.
 		Self {
 			header: unsafe {
-						isolation_start!(); 
-						let ptr = &*header_ptr;
-						isolation_end!(); 
-						ptr },
+                                isolation_start!(); 
+				let ptr = &*header_ptr;
+				isolation_end!(); 
+				ptr },
 			allocated_virtual_address: virtual_address,
 			allocated_length,
 		}
@@ -283,10 +283,10 @@ fn detect_rsdp(start_address: usize, end_address: usize) -> Result<&'static Acpi
 
 		// Verify the signature to find out if this is really an ACPI RSDP.
 		let rsdp = unsafe {
-						isolation_start!();
-						let temp_rsdp = &*(current_address as *const AcpiRsdp);
-						isolation_end!();
-						temp_rsdp };
+                    	isolation_start!();
+			let temp_rsdp = &*(current_address as *const AcpiRsdp);
+			isolation_end!();
+			temp_rsdp };
 		if rsdp.signature() != "RSD PTR " {
 			continue;
 		}
@@ -329,10 +329,10 @@ fn detect_acpi() -> Result<&'static AcpiRsdp, ()> {
 	// Get the address of the EBDA.
 	paging::identity_map(EBDA_PTR_LOCATION, EBDA_PTR_LOCATION);
 	let ebda_ptr_location = unsafe { 
-								isolation_start!();
-								let temp_ebda_ptr_location = &*(EBDA_PTR_LOCATION as *const u16);
-								isolation_end!();
-								temp_ebda_ptr_location };
+	        isolation_start!();
+		let temp_ebda_ptr_location = &*(EBDA_PTR_LOCATION as *const u16);
+		isolation_end!();
+		temp_ebda_ptr_location };
 	let ebda_address = (*ebda_ptr_location as usize) << 4;
 
 	// Check if the pointed address is valid. This check is also done in ACPICA.
@@ -412,10 +412,10 @@ fn parse_fadt(fadt: AcpiTable<'_>) {
 	// Note that not all fields may be accessible depending on the ACPI revision of the computer.
 	// Always check fadt.table_end_address() when accessing an optional field!
 	let fadt_table = unsafe {
-						isolation_start!();
-						let temp_fadt_table = &*(fadt.table_start_address() as *const AcpiFadt);
-						isolation_end!();
-						temp_fadt_table };
+	        isolation_start!();
+		let temp_fadt_table = &*(fadt.table_start_address() as *const AcpiFadt);
+		isolation_end!();
+		temp_fadt_table };
 
 	// Check if the FADT is large enough to hold an x_pm1a_cnt_blk field and if this field is non-zero.
 	// In that case, it shall be preferred over the I/O port specified in pm1a_cnt_blk.
@@ -477,18 +477,16 @@ pub fn get_madt() -> Option<&'static AcpiTable<'static>> {
 }
 
 pub fn poweroff() {
-	
-		if let (Some(pm1a_cnt_blk), Some(slp_typa)) = unsafe {(PM1A_CNT_BLK, SLP_TYPA)} {
-			let bits = (u16::from(slp_typa) << 10) | SLP_EN;
-			debug!(
-				"Powering Off through ACPI (port {:#X}, bitmask {:#X})",
-				pm1a_cnt_blk, bits
-			);
-			unsafe {outw(pm1a_cnt_blk, bits);}
-		} else {
-			debug!("ACPI Power Off is not available");
-		}
-
+	if let (Some(pm1a_cnt_blk), Some(slp_typa)) = unsafe {(PM1A_CNT_BLK, SLP_TYPA)} {
+	        let bits = (u16::from(slp_typa) << 10) | SLP_EN;
+	        debug!(
+			"Powering Off through ACPI (port {:#X}, bitmask {:#X})",
+			pm1a_cnt_blk, bits
+		);
+		unsafe {outw(pm1a_cnt_blk, bits);}
+	} else {
+		debug!("ACPI Power Off is not available");
+	}
 }
 
 pub fn init() {
@@ -512,21 +510,21 @@ pub fn init() {
 		// The XSDT contains 64-bit pointers whereas the RSDT has 32-bit pointers.
 		let table_physical_address = if rsdp.revision >= 2 {
 			let address = unsafe {
-								isolation_start!();
-								let temp_address = *(current_address as *const u64);
-								isolation_end!();
-								temp_address
-							} as usize;
-								
+				isolation_start!();
+				let temp_address = *(current_address as *const u64);
+			        isolation_end!();
+				temp_address
+			} as usize;
+
 			current_address += mem::size_of::<u64>();
 			address
 		} else {
 			let address = unsafe {
-								isolation_start!();
-								let temp_address = *(current_address as *const u32);
-								isolation_end!();
-								temp_address
-							} as usize;
+		        	isolation_start!();
+				let temp_address = *(current_address as *const u32);
+				isolation_end!();
+				temp_address
+			} as usize;
 			current_address += mem::size_of::<u32>();
 			address
 		};

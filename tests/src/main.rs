@@ -112,11 +112,9 @@ fn test_threading() -> Result<(), ()> {
 }
 
 fn main() {
-	//test_syscall_cost2();
-	//test_syscall_cost2();
-    //test_threading();
-
+	test_syscall_cost();
 	test_syscall_cost2();
+        //test_threading();
 	//security_evaluation_user_isolation();
 /*
     println!("Rusty test main starts");

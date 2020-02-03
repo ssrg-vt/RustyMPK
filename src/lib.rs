@@ -91,9 +91,6 @@ use mm::allocator::LockedHeap;
 #[global_allocator]
 static mut ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-//pub static mut UNSAFE_COUNTER: usize = 0;
-//pub static mut SYSCALL_COUNTER: usize = 0;
-
 /// Interface to allocate memory from system heap
 #[cfg(not(test))]
 #[no_mangle]
@@ -213,7 +210,7 @@ extern "C" fn initd(_arg: usize) {
 	let (argc, argv, environ) = syscalls::get_application_parameters();
 	user_start!(false);
 
-    arch::processor::fpu_init();
+        arch::processor::fpu_init();
 	unsafe {
 		runtime_entry(argc, argv, environ);
 	}
