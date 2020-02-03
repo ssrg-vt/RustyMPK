@@ -72,6 +72,8 @@ pub struct TaskStacks {
 	is_boot_stack: bool,
 	/// Stack of the task
 	pub stack: usize,
+	/// Stack to handle asynchronous interrupts
+	pub ist0: usize,
 	/// Isolated stack of the task
 	pub isolated_stack: usize,
 	/// User stack
@@ -87,6 +89,9 @@ impl TaskStacks {
 		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, true);
 		//info!("Allocating stack {:#X} ~ {:#X}", stack, stack + DEFAULT_STACK_SIZE);
 
+		let ist0 = ::mm::allocate(KERNEL_STACK_SIZE, true);
+		//info!("Allocating stack {:#X} ~ {:#X}", stack, stack + KERNEL_STACK_SIZE);
+
 		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, true);
 		//info!("Allocating isolated_stack {:#X} ~ {:#X}", isolated_stack, isolated_stack + DEFAULT_STACK_SIZE);
 
@@ -96,6 +101,7 @@ impl TaskStacks {
 		Self {
 			is_boot_stack: false,
 			stack: stack,
+			ist0: ist0,
 			isolated_stack: isolated_stack,
 			user_stack: user_stack,
 			//current_kernel_stack: 0xaaaabeefusize,
@@ -104,12 +110,16 @@ impl TaskStacks {
 	}
 
 	pub fn from_boot_stacks() -> Self {
-		let stack = gdt::get_boot_stacks();
-		//info!("Using boot stack {:#X}", stack);
+		let tss = unsafe { &(*PERCORE.tss.get()) };
+		let stack = tss.rsp[0] as usize + 0x10 - KERNEL_STACK_SIZE;
+		debug!("Using boot stack {:#X}", stack);
+		let ist0 = tss.ist[0] as usize + 0x10 - KERNEL_STACK_SIZE;
+		debug!("IST0 is located at {:#X}", ist0);
 
 		Self {
 			is_boot_stack: true,
 			stack: stack,
+			ist0: ist0,
 			isolated_stack: 0usize,
 			user_stack: 0usize,
 			//current_kernel_stack: 0xeeeebeefusize,
@@ -121,9 +131,10 @@ impl TaskStacks {
 impl Drop for TaskStacks {
 	fn drop(&mut self) {
 		if !self.is_boot_stack {
-			debug!("Deallocating stack {:#X}", self.stack);
+			debug!("Deallocating stack {:#X} and ist0 {:#X}", self.stack, self.ist0);
 
 			::mm::deallocate(self.stack, DEFAULT_STACK_SIZE);
+			::mm::deallocate(self.ist0, KERNEL_STACK_SIZE);
 
 			debug!("Deallocating isolated_stack {:#X}", self.stack);
 

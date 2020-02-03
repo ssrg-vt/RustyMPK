@@ -202,7 +202,7 @@ extern "C" fn initd(_arg: usize) {
 	syscalls::init();
 
 	// give the IP thread time to initialize the network interface
-	core_scheduler().scheduler();
+	core_scheduler().reschedule();
 
 	#[cfg(not(feature = "newlib"))]
 	{
@@ -271,7 +271,7 @@ fn boot_processor_main() -> ! {
 
 	// Run the scheduler loop.
 	loop {
-		core_scheduler.scheduler();
+		core_scheduler.reschedule_and_wait();
 	}
 }
 
@@ -286,6 +286,6 @@ fn application_processor_main() -> ! {
 
 	// Run the scheduler loop.
 	loop {
-		core_scheduler.scheduler();
+		core_scheduler.reschedule_and_wait();
 	}
 }
