@@ -125,7 +125,7 @@ fn __sys_usleep(usecs: u64) {
 			.add(current_task, Some(wakeup_time));
 
 		// Switch to the next task.
-		core_scheduler.scheduler();
+		core_scheduler.reschedule();
 	} else if usecs > 0 {
 		// Not enough time to set a wakeup timer, so just do busy-waiting.
 		arch::processor::udelay(usecs);
@@ -196,7 +196,7 @@ pub extern "C" fn sys_clone(id: *mut Tid, func: extern "C" fn(usize), arg: usize
 #[no_mangle]
 pub extern "C" fn sys_yield() {
 	kernel_enter!("sys_yield");
-	core_scheduler().scheduler();
+	core_scheduler().reschedule();
 	kernel_exit!("sys_yield");
 }
 

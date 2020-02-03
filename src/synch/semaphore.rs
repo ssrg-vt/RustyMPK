@@ -109,7 +109,7 @@ impl Semaphore {
 			}
 
 			// Switch to the next task.
-			core_scheduler.scheduler();
+			core_scheduler.reschedule();
 		}
 	}
 
