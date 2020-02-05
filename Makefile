@@ -10,6 +10,7 @@ opt := --release
 rdir := release
 endif
 
+
 RN :=
 ifdef COMSPEC
 RM := del

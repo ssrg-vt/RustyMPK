@@ -25,7 +25,8 @@ pub type Tid = u32;
 
 #[no_mangle]
 fn __sys_getpid() -> Tid {
-	safe_core_scheduler().current_task.borrow().id.into() as Tid
+	//safe_core_scheduler().current_task.borrow().id.into() as Tid
+        return 0;
 }
 
 #[no_mangle]

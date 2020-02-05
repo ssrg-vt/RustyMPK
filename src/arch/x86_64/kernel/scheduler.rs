@@ -89,7 +89,7 @@ impl TaskStacks {
 		let stack = ::mm::allocate(DEFAULT_STACK_SIZE, true);
 		//info!("Allocating stack {:#X} ~ {:#X}", stack, stack + DEFAULT_STACK_SIZE);
 
-		let ist0 = ::mm::allocate(KERNEL_STACK_SIZE, true);
+		let ist0 = ::mm::user_allocate(KERNEL_STACK_SIZE, true);
 		//info!("Allocating stack {:#X} ~ {:#X}", stack, stack + KERNEL_STACK_SIZE);
 
 		let isolated_stack = ::mm::unsafe_allocate(DEFAULT_STACK_SIZE, true);

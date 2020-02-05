@@ -14,7 +14,7 @@ use arch;
 use core::panic::PanicInfo;
 
 // see https://users.rust-lang.org/t/psa-breaking-change-panic-fmt-language-item-removed-in-favor-of-panic-implementation/17875
-#[cfg(not(test))]
+#[linkage = "weak"]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
 	print!("[{}][!!!PANIC!!!] ", arch::percore::core_id());
@@ -34,10 +34,9 @@ fn panic(info: &PanicInfo) -> ! {
 	}
 }
 
-#[cfg(not(test))]
-#[lang = "oom"]
-#[no_mangle]
-pub fn rust_oom(layout: Layout) -> ! {
+#[linkage = "weak"]
+#[alloc_error_handler]
+fn rust_oom(layout: Layout) -> ! {
 	println!(
 		"[{}][!!!OOM!!!] Memory allocation of {} bytes failed",
 		arch::percore::core_id(),

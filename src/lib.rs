@@ -33,6 +33,7 @@
 #![feature(naked_functions)]
 #![feature(core_intrinsics)]
 #![feature(type_ascription)]
+#![feature(alloc_error_handler)]
 #![allow(unused_macros)]
 #![no_std]
 
@@ -73,6 +74,7 @@ mod environment;
 mod errno;
 mod kernel_message_buffer;
 mod mm;
+#[cfg(not(test))]
 mod runtime_glue;
 mod scheduler;
 mod synch;
@@ -211,6 +213,7 @@ extern "C" fn initd(_arg: usize) {
 	user_start!(false);
 
         arch::processor::fpu_init();
+        info!("Call runtime_entry");
 	unsafe {
 		runtime_entry(argc, argv, environ);
 	}
