@@ -120,22 +120,22 @@ macro_rules! user_start {
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
 
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(user_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 
 			if $e {
 				asm!("mov $$0xfc, %eax;
-					  xor %ecx, %ecx;
-					  xor %edx, %edx;
-					  wrpkru;
-					  lfence"
+				      xor %ecx, %ecx;
+			              xor %edx, %edx;
+				      wrpkru;
+				      lfence"
 					:
 					:
 					: "eax", "ecx", "edx"
@@ -151,10 +151,10 @@ macro_rules! user_end {
 		#[allow(unused)]
 		unsafe {
 			asm!("xor %eax, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				:
 				:
 				: "eax", "ecx", "edx"
@@ -167,7 +167,7 @@ macro_rules! user_end {
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(kernel_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 		}
 	}
@@ -181,7 +181,7 @@ macro_rules! print_kernel_stack_pointer {
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 			info!("print kernel stack pointer: {:#X}", kernel_stack_pointer);
 		}
@@ -198,10 +198,10 @@ macro_rules! kernel_enter {
 		#[allow(unused)]
 		unsafe {
 			asm!("xor %eax, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				:
 				:
 				: "eax", "ecx", "edx"
@@ -210,7 +210,7 @@ macro_rules! kernel_enter {
 			asm!("mov %rsp, $0"
 				: "=r"(user_stack_pointer)
 				: 
-				: "rsp"
+				:
 				: "volatile");
 
 			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
@@ -218,7 +218,7 @@ macro_rules! kernel_enter {
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(kernel_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 			
 			core_scheduler().current_task.borrow_mut().user_stack_pointer = user_stack_pointer;
@@ -237,7 +237,7 @@ macro_rules! kernel_exit {
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
 
@@ -245,16 +245,16 @@ macro_rules! kernel_exit {
 			asm!("mov $0, %rsp"
 			  : 
 			  : "r"(user_stack_pointer)
-			  : "rsp"
+			  :
 			  : "volatile");
 
 			//println!("=========exit : {}/", $e);
 
 			asm!("mov $$0xfc, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				:
 				:
 				: "eax", "ecx", "edx"
@@ -273,10 +273,10 @@ macro_rules! kernel_function {
 		unsafe {
 			// switch permission
 			asm!("xor %eax, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				: 
 				: 
 				: "eax", "ecx", "edx"
@@ -287,14 +287,14 @@ macro_rules! kernel_function {
 			asm!("mov %rsp, $0"
 				: "=r"(user_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 
 			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(kernel_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 
 			let temp_ret = $f($($x)*);
@@ -305,21 +305,21 @@ macro_rules! kernel_function {
 			asm!("mov %rsp, $0"
 				: "=r"(kernel_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
 			*/
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(user_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 
 			asm!("mov $$0xfc, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				: 
 				:
 				: "eax", "ecx", "edx"
@@ -340,10 +340,10 @@ macro_rules! kernel_function {
 		unsafe {
 			// switch permission
 			asm!("xor %eax, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				: 
 				: 
 				: "eax", "ecx", "edx"
@@ -354,38 +354,29 @@ macro_rules! kernel_function {
 			asm!("mov %rsp, $0"
 				: "=r"(user_stack_pointer)
 				:
-				: "rsp"
+				:
 				: "volatile");
 
 			kernel_stack_pointer = core_scheduler().current_task.borrow().kernel_stack_pointer;
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(kernel_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 
 			let temp_ret = $p.$f($($x)*);
 
-			// Save kernel stack pinter and
-			// swiatch back to the user stack
-			asm!("mov %rsp, $0"
-				: "=r"(kernel_stack_pointer)
-				:
-				: "rsp"
-				: "volatile");
-			core_scheduler().current_task.borrow_mut().kernel_stack_pointer = kernel_stack_pointer;
-
 			asm!("mov $0, %rsp"
 				: 
 				: "r"(user_stack_pointer)
-				: "rsp"
+				:
 				: "volatile");
 
 			asm!("mov $$0xfc, %eax;
-				  xor %ecx, %ecx;
-				  xor %edx, %edx;
-				  wrpkru;
-				  lfence"
+			      xor %ecx, %ecx;
+			      xor %edx, %edx;
+			      wrpkru;
+			      lfence"
 				: 
 				:
 				: "eax", "ecx", "edx"
@@ -400,11 +391,11 @@ macro_rules! isolation_start {
 	() => {
 		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		asm!("xor %ecx, %ecx;
-		    rdpkru;
-			or $0, %eax;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+		      rdpkru;
+		      or $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_IN)
 			: "eax", "ecx", "edx"
@@ -415,11 +406,11 @@ macro_rules! isolation_start {
 macro_rules! isolation_end {
 	() => {
 		asm!("xor %ecx, %ecx;
-			rdpkru;
-			and $0, %eax;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+		      rdpkru;
+		      and $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT)
 			: "eax", "ecx", "edx"
@@ -431,11 +422,11 @@ macro_rules! isolation_wrapper {
 	($f:ident($($x:tt)*)) => {{
 		//unsafe{ ::UNSAFE_COUNTER += 1; }
 		asm!("xor %ecx, %ecx;
-			rdpkru;
-			or $0, %eax;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+		      rdpkru;
+		      or $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_IN)
 			: "eax", "ecx", "edx"
@@ -444,11 +435,11 @@ macro_rules! isolation_wrapper {
 		let temp_ret = $f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			rdpkru;
-			and $0, %eax;
-			xor %edx, %edx;
-			wrpkru;
-			lfence"
+		      rdpkru;
+		      and $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT)
 			: "eax", "ecx", "edx"
@@ -556,10 +547,10 @@ macro_rules! isolate_function_weak {
 
 		/* We get the address of current stack frame and calculate size of the stack frame. */
 		asm!("mov %rbp, $0;
-			  mov %rsp, $1"
+		      mov %rsp, $1"
 			: "=r"(__current_rbp), "=r"(__current_rsp)
 			:
-			: "rbp", "rsp"
+			:
 			: "volatile");
 
 		/* Calculate the number of pages of the current stack frame */
@@ -569,29 +560,29 @@ macro_rules! isolate_function_weak {
 
 		/* or $1, %eax -> Add mm::UNSAFE_PERMISSION to current value of PKRU */
 		asm!("mov $0, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $1, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		      xor %ecx, %ecx;
+		      rdpkru;
+		      or $1, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			: 
 			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		let temp_ret = $f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			  rdpkru;
-			  and $0, %eax;		
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $1, %rsp"
+		      rdpkru;
+		      and $0, %eax;		
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+		      mov $1, %rsp"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
@@ -611,39 +602,39 @@ macro_rules! isolate_function_weak {
 		let mut __count:usize = 0;
 
 		asm!("mov %rbp, $0;
-			  mov %rsp, $1"
+		      mov %rsp, $1"
 			: "=r"(__current_rbp), "=r"(__current_rsp)
 			:
-			: "rbp", "rsp"
+			:
 			: "volatile");
 
 		__count = (align_up!(__current_rbp, 4096) - align_down!(__current_rsp, 4096))/4096;
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SHARED_MEM_REGION);
 
 		asm!("mov $0, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $1, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		      xor %ecx, %ecx;
+		      rdpkru;
+		      or $1, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			: 
 			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		let temp_ret = $p.$f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			  rdpkru;
-			  and $0, %eax;		
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $1, %rsp"
+		      rdpkru;
+		      and $0, %eax;		
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+		      mov $1, %rsp"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		set_pkey_on_page_table_entry::<BasePageSize>(align_down!(__current_rsp, 4096), __count, SAFE_MEM_REGION);
@@ -660,31 +651,31 @@ macro_rules! isolate_function_strong {
 		let mut __current_rsp: usize = 0;
 
 		asm!("mov %rsp, $0;
-			  mov $1, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $2, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		      mov $1, %rsp;
+                      push %rax; push %rcx; push %rdx;
+		      xor %ecx, %ecx;
+		      rdpkru;
+		      or $2, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+                      pop %rdx; pop %rcx; pop %rax"
 			: "=r"(__current_rsp)
 			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
+			:: "volatile");
 
 		let temp_ret = $f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			  rdpkru;
-			  and $0, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $1, %rsp"
+		      rdpkru;
+		      and $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+		      mov $1, %rsp"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
+			: "eax", "ecx", "edx" : "volatile");
 
 		temp_ret
 	}};
@@ -697,31 +688,31 @@ macro_rules! isolate_function_strong {
 		let mut __current_rsp: usize = 0;
 
 		asm!("mov %rsp, $0;
-			  mov $1, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $2, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		      mov $1, %rsp;
+                      push %rax; push %rcx; push %rdx;
+		      xor %ecx, %ecx;
+		      rdpkru;
+		      or $2, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+                      pop %rdx; pop %rcx; pop %rax"
 			: "=r"(__current_rsp)
 			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
+			:: "volatile");
 
 		let temp_ret = $p.$f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			  rdpkru;
-			  and $0, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $1, %rsp"
+		      rdpkru;
+		      and $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+		      mov $1, %rsp"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
-			: "volatile");
+			: "eax", "ecx", "edx" : "volatile");
 
 		temp_ret
 	}};
@@ -734,30 +725,30 @@ macro_rules! isolate_function_strong {
 		let mut __current_rsp: usize = 0;
 
 		asm!("mov %rsp, $0;
-			  mov $1, %rsp;
-			  xor %ecx, %ecx;
-			  rdpkru;
-			  or $2, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence"
+		      mov $1, %rsp;
+		      xor %ecx, %ecx;
+		      rdpkru;
+		      or $2, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence"
 			: "=r"(__current_rsp)
 			: "r"(__isolated_stack),"r"(mm::UNSAFE_PERMISSION_IN)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		let temp_ret = $p::$f($($x)*);
 
 		asm!("xor %ecx, %ecx;
-			  rdpkru;
-			  and $0, %eax;
-			  xor %edx, %edx;
-			  wrpkru;
-			  lfence;
-			  mov $1, %rsp"
+		      rdpkru;
+		      and $0, %eax;
+		      xor %edx, %edx;
+		      wrpkru;
+		      lfence;
+		      mov $1, %rsp"
 			:
 			: "r"(mm::UNSAFE_PERMISSION_OUT),"r"(__current_rsp)
-			: "rsp", "eax", "ecx", "edx"
+			: "eax", "ecx", "edx"
 			: "volatile");
 
 		temp_ret

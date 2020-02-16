@@ -210,8 +210,22 @@ extern "C" fn initd(_arg: usize) {
 	}
 	// Get the application arguments and environment variables.
 	let (argc, argv, environ) = syscalls::get_application_parameters();
-	user_start!(false);
 
+/*
+        //let scheduler = core_scheduler();
+        let mut start = arch::processor::get_timer_ticks();
+        for _ in 0..100000000 {
+            //safe_set_core_scheduler(scheduler);
+            let _ = safe_core_id();
+        }
+        start = arch::processor::get_timer_ticks() - start;
+        info!("set time:{}", start);
+*/
+        info!("call performance_evaluation");
+        //performance_evaluation();
+        //performance_evaluation2();
+
+        user_start!(false);
         arch::processor::fpu_init();
         info!("Call runtime_entry");
 	unsafe {
@@ -219,19 +233,50 @@ extern "C" fn initd(_arg: usize) {
 	}
 }
 
+static mut LEN: u64 = 16;
+static mut PTR: u64 = 0;
+
+#[inline(always)]
+#[no_mangle]
+pub unsafe extern "C" fn my_write_bytes() {
+    asm!("cld; mov $$0xcd, %rax; mov $0, %rcx; mov $1, %rdi; rep stosb" :: "r"(LEN), "r"(PTR) : "rdi","rcv","rax", "memory", "cc" : "volatile");
+}
+
+unsafe_global_var!(static mut buffer: usize = 0);
+unsafe_global_var!(static mut _size: usize = 0);
 fn performance_evaluation() {
 	use core::ptr::write_bytes;
-	let buffer = mm::unsafe_allocate(4096, true);
-	for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
-		let scheduler = core_scheduler();
+        unsafe {buffer = mm::unsafe_allocate(4096, true);}
+        //unsafe  { PTR = buffer as u64; }
+        for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
+		//let scheduler = core_scheduler();
+                unsafe { _size = *size; }
 		let mut start = arch::processor::get_timer_ticks();
 		for _ in 0..1000000 {
-			unsafe {isolate_function_strong!(write_bytes(buffer as *mut u8, 0xCDu8, *size))};
-			//safe_set_core_scheduler(scheduler);
+                    unsafe {
+                        //isolate_function_strong!(my_write_bytes());
+			isolate_function_strong!(write_bytes(buffer as *mut u8, 0xcd, _size));
+                    }
 		}
 		start = arch::processor::get_timer_ticks() - start;
 
-		info!("{}", start);
+		info!("{} {}", size, start);
+	}
+}
+
+fn performance_evaluation2() {
+	use core::ptr::write_bytes;
+
+        for size in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096].iter() {
+		let mut start = arch::processor::get_timer_ticks();
+		for _ in 0..1000000 {
+                    unsafe {
+			write_bytes(buffer as *mut u8, 0xcd, *size as usize);
+                    }
+		}
+		start = arch::processor::get_timer_ticks() - start;
+
+		info!("regular: {} {}", size, start);
 	}
 }
 
