@@ -1,4 +1,4 @@
-# Intra-Unikernel Isolation with Interl Memory Protection Keys
+# Intra-Unikernel Isolation with Intel Memory Protection Keys
 This work was implemented on the top of RustyHermit (https://github.com/hermitcore/libhermit-rs)
 
 ## License
