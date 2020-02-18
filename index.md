@@ -4,7 +4,7 @@
 
 * * *
 
-RustyMPK provides a intra-memory isolation using Intel Memory Protection Keys.
+RustyMPK provides an intra-unikernel isolation using Intel Memory Protection Keys.
 
 *For more details see our [VEE'20 paper](https://www.ssrg.ece.vt.edu/papers/).*
 
