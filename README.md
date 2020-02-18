@@ -16,7 +16,7 @@ $ git checkout hermit
 ```
 To build the toolchain, you need the configuration file `config.toml` in the root directory of the repository. 
 A template `config.toml.example` is part of the repository. 
-However, default `config.toml` in the repository, which already enable the support of RustHermit is recommended.
+However, default `config.toml` in the repository, which already enable the support of RustyHermit is recommended.
 You have only to change the installation path (see variable `prefix` in `config.toml`).
 
 Afterwards you are able to build the toolchain with following command `./x.py install`.
