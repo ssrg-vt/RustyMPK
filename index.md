@@ -1,6 +1,6 @@
 * * *
 **News**
-- RustyMPK [paper](https://www.ssrg.ece.vt.edu/papers/vee2019.pdf) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020).
+- RustyMPK [paper](https://www.ssrg.ece.vt.edu/papers/) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020).
 
 * * *
 
