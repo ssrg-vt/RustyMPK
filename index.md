@@ -4,7 +4,7 @@
 
 * * *
 
-libhermitMPK provides an intra-unikernel isolation using Intel Memory Protection Keys.
+libhermitMPK provides an intra-unikernel isolation using Intel Memory Protection Keys (MPK).
 
 We implement libhermitMPK on top of the [RustyHermit](https://github.com/hermitcore/libhermit-rs) unikernel.
 
