@@ -1,4 +1,4 @@
-# RustyMPK: Intra-Unikernel Isolation with Intel Memory Protection Keys
+# libhermitMPK: Intra-Unikernel Isolation with Intel Memory Protection Keys
 
 For general information about its design principles and implementation, please read the [paper](https://www.ssrg.ece.vt.edu/papers).
 
