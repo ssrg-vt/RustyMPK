@@ -17,7 +17,7 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 ### Design Principles
 
 <p align="center">
-  <img width="400" src="img/emmroy_rayout.pdf">
+  <img width="400" src="img/memory_rayout.pdf">
 </p>
 
 <p align="center">
