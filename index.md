@@ -9,7 +9,7 @@ By leveraging Intel Memory Protection Keys (MPK), intra-unikernel isolation can 
 libhermitMPK provides isolation between trusted and untrusted components: (1) safe from unsafe Rust kernel code and (2) kernel from user code.
 
 <p align="center">
-  <img width="400" src="img/memory_rayout.png">
+  <img width="600" src="img/memory_rayout.png">
 </p>
 
 libhermitMPK is implemented on top of [RustyHermit](https://github.com/hermitcore/libhermit-rs).
@@ -24,14 +24,14 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 libhermitMPK follows the design objectives: (1) preservation of a single address space, (2) isolation of various memory areas, and (3) negligible cost. Below are evaluation results to demonstrate the design principles.
 
 <p align="center">
-  <img width="400" src="img/write_bytes.png">
+  <img width="600" src="img/write_bytes.png">
 </p>
 
 `write_bytes` is an unsafe kernel function writing byte to an arbitrary address. The isolated `write_bytes`
 introduces a 6% slowdown compared to the vainila `write_bytes` when writing 4KB at a time.
 
 <p align="center">
-  <img width="400" src="img/macro_benchmark.png">
+  <img width="600" src="img/macro_benchmark.png">
 </p>
 
 The results of memory/compute intensive benchmarks from various suites including NPB, PARSEC, and Phoenix illustrate
