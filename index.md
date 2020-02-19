@@ -17,15 +17,15 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 ### Design Principles
 
 <p align="center">
-  <img width="400" src="img/memory_rayout.pdf">
+  <img width="400" src="img/memory_rayout.png">
 </p>
 
 <p align="center">
-  <img width="400" src="img/write_bytes.pdf">
+  <img width="400" src="img/write_bytes.png">
 </p>
 
 <p align="center">
-  <img width="400" src="img/macro_benchmark.pdf">
+  <img width="400" src="img/macro_benchmark.png">
 </p>
 
 For a detailed description please read libhermitMPK’s VEE 2020
