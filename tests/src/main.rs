@@ -58,9 +58,9 @@ fn security_evaluation_user_isolation() {
 	vulnerable_function(s, 0x400000usize as *mut _);
 }
 
-static COUNTER: AtomicU32 = AtomicU32::new(8);
+//static COUNTER: AtomicU32 = AtomicU32::new(8);
 //static results: Mutex<Vec<f64>> = Mutex::new(Vec::<f64>::new());
-
+/*
 fn test_threading() -> Result<(), ()> {
 	use std::thread;
 	use std::time::Instant;
@@ -110,39 +110,22 @@ fn test_threading() -> Result<(), ()> {
 
 	Ok(())
 }
+*/
 
 fn main() {
-	test_syscall_cost();
-	test_syscall_cost2();
-        //test_threading();
-	//security_evaluation_user_isolation();
-/*
-    println!("Rusty test main starts");
-	unsafe {
-		let val: u32;
-		asm!("xor %ecx, %ecx;
-		      rdpkru;
-		      movl %eax, $0;
-		      lfence"
-		    : "=r"(val)
-		    :
-		    : "eax", "ecx"
-		    : "volatile");
-		println!("PKRU val in main(): {:#X}", val);
-	}
-
         println!("Test {} ... {}", stringify!(hello), test_result(hello()));
 
+/*	
+        test_syscall_cost();
+	test_syscall_cost2();
+        test_threading();
+	security_evaluation_user_isolation();
+        
         println!(
 		"Test {} ... {}",
 		stringify!(test_pkru_context_switch),
 		test_result(test_pkru_context_switch())
 	);
-        unsafe {
-            let addr = 0x400008;
-            let p_addr: *mut u64 = addr as *mut u64;
-            println!("p: {}", *p_addr);
-        }
 
 	println!(
 		"Test {} ... {}",
@@ -165,21 +148,20 @@ fn main() {
 		stringify!(create_file),
 		test_result(create_file())
 	);
-*/
-/*
+
         println!("before alloc");
         unsafe {
         let layout: std::alloc::Layout = std::alloc::Layout::from_size_align(8, 8).unwrap();
         let a = std::alloc::alloc(layout);
         }
         println!("after alloc");
-
         println!(
 		"Test {} ... {}",
 		stringify!(threading),
                 test_result(threading())
 	);
-	println!(
+	
+        println!(
 		"Test {} ... {}",
 		stringify!(pi_sequential),
 		test_result(pi_sequential(1000000))
@@ -223,5 +205,5 @@ fn main() {
 		stringify!(test_http_request),
 		test_result(test_http_request())
 	);
-	*/
+*/
 }
