@@ -23,13 +23,16 @@ Please replace installation_path to the location, where you install the toolchai
 
 2. Install `uhyve`
 ```
-$ # Get our source code.
+# Get our source code.
 $ git clone git@github.com:hermitcore/uhyve.git
 $ cd uhyve
 
-$ # Get a copy of the Rust source code so we can rebuild core
-$ # for a bare-metal target.
+# Get a copy of the Rust source code so we can rebuild core
+# for a bare-metal target.
 $ cargo build
+
+# To avoid `sodo` to start uhyve
+$ chmod a+rw /dev/kvm
 ```
 ## Build
 --will add
