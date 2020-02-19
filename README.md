@@ -35,8 +35,9 @@ $ cargo build
 --will add
 
 ## Run an application
---will add
-
+```
+$ /path_to_uhyve/uhyve -v /path_to_the_unikernel/rusty_test
+```
 ## License
 
 Licensed under either of
