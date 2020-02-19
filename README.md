@@ -4,9 +4,6 @@ For general information about its design principles and implementation, please r
 
 This work was implemented on the top of RustyHermit (https://github.com/hermitcore/libhermit-rs)
 
-## Quick start
---will add
-
 ## Prerequisites
 1. Install Rust toolchain with RustyHertmit extensions.
 ```
