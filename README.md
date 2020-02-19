@@ -32,11 +32,9 @@ $ cd uhyve
 
 $ # Get a copy of the Rust source code so we can rebuild core
 $ # for a bare-metal target.
-$ cargo buil
+$ cargo build
 
 ```
-
-
 ## Build
 --will add
 
