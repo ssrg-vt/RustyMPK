@@ -17,15 +17,15 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 ### Design Principles
 
 <p align="center">
-  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+  <img width="400" src="img/emmroy_rayout.pdf">
 </p>
 
 <p align="center">
-  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+  <img width="400" src="img/write_bytes.pdf">
 </p>
 
 <p align="center">
-  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+  <img width="400" src="img/macro_benchmark.pdf">
 </p>
 
 For a detailed description please read libhermitMPK’s VEE 2020
