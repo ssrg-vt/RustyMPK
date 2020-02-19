@@ -7,14 +7,10 @@
 libhermitMPK is a new design bringing memory isolation inside a unikernel instance while keeping a single address space.
 Intra-unikernel isolation can be provided without impacting the lightweightness and performance benefits of unikernels by leveraging Intel Memory Protection Keys (MPK).
 libhermitMPK provides isolation between trusted and untrusted components: (1) safe from unsafe Rust kernel code and (2) kernel from user code.
-
 <p align="center">
   <img width="400" src="img/memory_rayout.png">
 </p>
-
-
-We implement libhermitMPK on top of [RustyHermit](https://github.com/hermitcore/libhermit-rs).
-
+libhermitMPK is implemented on top of [RustyHermit](https://github.com/hermitcore/libhermit-rs).
 *For more details see our [VEE'20 paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf).*
 
 ### Trying it out
@@ -22,7 +18,7 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 - [https://github.com/ssrg-vt/libhermitMPK](https://github.com/ssrg-vt/libhermitMPK)
 
 ### Design Principles
-libhermitMPK follows the design objectives: (1) preservation of a single address space, (2) isolation of var-ious memory areas, and (3) negligible cost.
+libhermitMPK follows the design objectives: (1) preservation of a single address space, (2) isolation of various memory areas, and (3) negligible cost.
 
 <p align="center">
   <img width="400" src="img/write_bytes.png">
