@@ -28,7 +28,7 @@ libhermitMPK follows the design objectives: (1) preservation of a single address
 </p>
 
 `write_bytes` is an unsafe kernel function writing byte to an arbitrary address. The isolated `write_bytes`
-introduces a 6% slowdown compared to the vainila `write_bytes` when writing 4KB at a time.
+introduces a 6% slowdown compared to the vanilla `write_bytes` when writing 4KB at a time.
 
 <p align="center">
   <img width="600" src="img/macro_benchmark.png">
