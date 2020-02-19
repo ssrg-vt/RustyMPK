@@ -7,7 +7,7 @@ This work was implemented on the top of RustyHermit (https://github.com/hermitco
 ## Prerequisites
 1. Install Rust toolchain with RustyHertmit extensions.
 ```
-$ git clone git@github.com:hermitcore/rust.git
+$ git clone git@github.com:ssrg-vt/rust.git
 $ cd rust
 $ git checkout hermit
 ```
