@@ -11,6 +11,7 @@ libhermitMPK provides isolation between trusted and untrusted components: (1) sa
   <img width="400" src="img/memory_rayout.png">
 </p>
 libhermitMPK is implemented on top of [RustyHermit](https://github.com/hermitcore/libhermit-rs).
+
 *For more details see our [VEE'20 paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf).*
 
 ### Trying it out
@@ -24,9 +25,15 @@ libhermitMPK follows the design objectives: (1) preservation of a single address
   <img width="400" src="img/write_bytes.png">
 </p>
 
+`write_bytes` is an unsafe kernel function writing byte to an arbitrary address. The isolated `write_bytes`
+introduces a 6% slowdown compared to the vainila `write_bytes` when writing 4KB at a time.
+
 <p align="center">
   <img width="400" src="img/macro_benchmark.png">
 </p>
+
+The results of memory/compute intensive benchmarks from various suites including NPB, PARSEC, and Phoenix illustrate
+that the average slowdown imposed by the intra-unikernel isolation compared with the vanilla unikernel is only 0.6%
 
 For a detailed description please read libhermitMPK’s VEE 2020
 [paper](https://www.ssrg.ece.vt.edu/papers/) at Virginia Tech.
