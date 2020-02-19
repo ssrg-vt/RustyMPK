@@ -38,7 +38,8 @@ $ sudo chmod a+rw /dev/kvm
 --will add
 
 ## Run an application
-```
+```sh
+$ Start the rusty_test application
 $ /path_to_uhyve/uhyve -v /path_to_the_unikernel/rusty_test
 ```
 ## License
