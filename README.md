@@ -31,7 +31,7 @@ $ cd uhyve
 # for a bare-metal target.
 $ cargo build
 
-# To avoid `sodo` to start uhyve
+# To avoid *sudo* to start uhyve
 $ chmod a+rw /dev/kvm
 ```
 ## Build
