@@ -6,7 +6,7 @@ This work was implemented on the top of RustyHermit (https://github.com/hermitco
 
 ## Prerequisites
 1. Install Rust toolchain with RustyHertmit extensions.
-```
+```sh
 $ git clone git@github.com:ssrg-vt/rust.git
 $ cd rust
 $ git checkout hermit
@@ -22,7 +22,7 @@ Afterwards you have to set the environment variable `XARGO_RUST_SRC` to `/instal
 Please replace installation_path to the location, where you install the toolchain.
 
 2. Install `uhyve`
-```
+```sh
 $ # Get our source code.
 $ git clone git@github.com:hermitcore/uhyve.git
 $ cd uhyve
