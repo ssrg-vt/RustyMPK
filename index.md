@@ -16,6 +16,18 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 
 ### Design Principles
 
+<p align="center">
+  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+</p>
+
+<p align="center">
+  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+</p>
+
+<p align="center">
+  <img width="400" src="https://github.com/ssrg-vt/hermitux/raw/master/doc/pic-overview.png">
+</p>
+
 For a detailed description please read libhermitMPK’s VEE 2020
 [paper](https://www.ssrg.ece.vt.edu/papers/) at Virginia Tech.
 
