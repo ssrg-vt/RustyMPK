@@ -35,7 +35,11 @@ $ # To avoid *sudo* to start uhyve
 $ sudo chmod a+rw /dev/kvm
 ```
 ## Build
---will add
+```sh
+$ # Go to the libhermitMPK repo
+$ cd libhermitMPK
+$ make
+```
 
 ## Run an application
 ```sh
