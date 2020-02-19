@@ -1,6 +1,6 @@
 * * *
 **News**
-- libhermitMPK [paper](https://www.ssrg.ece.vt.edu/papers/) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020).
+- libhermitMPK [paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020).
 
 * * *
 
@@ -22,7 +22,7 @@ libhermitMPK is open source and all the code and instructions are on GitHub:
 - [https://github.com/ssrg-vt/libhermitMPK](https://github.com/ssrg-vt/libhermitMPK)
 
 ### Design Principles
-
+libhermitMPK follows the design objectives: (1)preservation of a single address space, (2) isolation of var-ious memory areas, and (3) negligible cost.
 
 <p align="center">
   <img width="400" src="img/write_bytes.png">
