@@ -38,13 +38,18 @@ $ sudo chmod a+rw /dev/kvm
 ```sh
 $ # Go to the libhermitMPK repo
 $ cd libhermitMPK
+
+$ # build a debug version
 $ make
+
+$ # build a release version
+$ make release=1
 ```
 
 ## Run an application
 ```sh
-$ # Start the rusty_test application
-$ /path_to_uhyve/uhyve -v /path_to_the_unikernel/rusty_test
+$ # To start the rusty_tests application
+$ /path_to_uhyve/uhyve -v /path_to_the_unikernel/rusty_tests
 ```
 ## License
 
