@@ -6,7 +6,7 @@
 
 libhermitMPK is a new design bringing memory isolation inside a unikernel instance while keeping a *single address space*.
 By leveraging Intel Memory Protection Keys ([MPK](https://lwn.net/Articles/643797)), intra-unikernel isolation can be provided without impacting the lightweightness and performance benefits of unikernels.
-libhermitMPK provides isolation between trusted and untrusted components: (1) safe from unsafe Rust kernel code and (2) kernel from user code.
+libhermitMPK provides isolation between trusted and untrusted components: (1) safe from unsafe [Rust](https://www.rust-lang.org) kernel code and (2) kernel from user code.
 
 <p align="center">
   <img width="600" src="img/memory_rayout.png">
