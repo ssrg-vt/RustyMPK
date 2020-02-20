@@ -42,7 +42,6 @@ For a detailed description please read libhermitMPK’s VEE 2020 [paper](https:/
 
 ### Contact
 - [Mincheol Sung](https://mincheolsung.com), Virginia Tech: mincheol *at* vt.edu
-
 - [Pierre Olivier](https://sites.google.com/view/pierreolivier), The University of Manchester: pierre.olivier *at* manchester.ac.uk
 - [Binoy Ravindran](https://ece.vt.edu/people/profile/ravindran), Virginia Tech: binoy *at* vt.edu
 
