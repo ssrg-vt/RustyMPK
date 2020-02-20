@@ -5,7 +5,7 @@
 * * *
 
 libhermitMPK is a new design bringing memory isolation inside a unikernel instance while keeping a *single address space*.
-By leveraging Intel Memory Protection Keys (MPK), intra-unikernel isolation can be provided without impacting the lightweightness and performance benefits of unikernels.
+By leveraging Intel Memory Protection Keys ([MPK](https://lwn.net/Articles/643797/)), intra-unikernel isolation can be provided without impacting the lightweightness and performance benefits of unikernels.
 libhermitMPK provides isolation between trusted and untrusted components: (1) safe from unsafe Rust kernel code and (2) kernel from user code.
 
 <p align="center">
@@ -34,7 +34,7 @@ introduces a 6% slowdown compared to the vanilla `write_bytes` when writing 4KB 
   <img width="600" src="img/macro_benchmark.png">
 </p>
 
-The results of memory/compute intensive benchmarks from various suites including NPB, PARSEC, and Phoenix illustrate
+The results of memory/compute intensive benchmarks from various suites including [NPB](http://aces.snu.ac.kr/software/snu-npb/), [PARSEC](https://parsec.cs.princeton.edu/), and [Phoenix](https://github.com/kozyraki/phoenix) illustrate
 that the average slowdown imposed by the intra-unikernel isolation compared with the vanilla unikernel is only 0.6%
 
 For a detailed description please read libhermitMPK’s VEE 2020
