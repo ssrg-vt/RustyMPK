@@ -1,6 +1,6 @@
 * * *
 **News**
-- Our libhermitMPK [paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020)!.
+- Our libhermitMPK [paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020)!
 
 * * *
 
