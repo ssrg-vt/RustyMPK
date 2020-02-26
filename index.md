@@ -45,6 +45,8 @@ For a detailed description please read libhermitMPK’s VEE 2020 [paper](https:/
 - [Pierre Olivier](https://sites.google.com/view/pierreolivier), The University of Manchester: pierre.olivier *at* manchester.ac.uk
 - [Binoy Ravindran](https://ece.vt.edu/people/profile/ravindran), Virginia Tech: binoy *at* vt.edu
 
+We also have a Slack [chanel](https://hermitcore.slack.com/archives/CTUDKSBAP) for libhermitMPK.
+
 * * *
 
 libhermitMPK is an open-source project of the [Systems Software Research Group](https://www.ssrg.ece.vt.edu/) at [Virginia Tech](https://vt.edu/). 
