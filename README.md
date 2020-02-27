@@ -23,32 +23,32 @@ Please replace installation_path to the location, where you install the toolchai
 
 2. Install `uhyve`
 ```sh
-$ # Get our source code.
+# Get our source code.
 $ git clone git@github.com:hermitcore/uhyve.git
 $ cd uhyve
 
-$ # Get a copy of the Rust source code so we can rebuild core
-$ # for a bare-metal target.
+# Get a copy of the Rust source code so we can rebuild core
+# for a bare-metal target.
 $ cargo build
 
-$ # To avoid *sudo* to start uhyve
+# To avoid *sudo* to start uhyve
 $ sudo chmod a+rw /dev/kvm
 ```
 ## Build
 ```sh
-$ # Go to the libhermitMPK repo
+# Go to the libhermitMPK repo
 $ cd libhermitMPK
 
-$ # build a debug version
+# build a debug version
 $ make
 
-$ # build a release version
+# build a release version
 $ make release=1
 ```
 
 ## Run an application
 ```sh
-$ # To start the rusty_tests application
+# To start the rusty_tests application
 $ /path_to_uhyve/uhyve -v /path_to_the_unikernel/rusty_tests
 ```
 ## License
