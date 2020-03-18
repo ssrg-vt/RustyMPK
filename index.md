@@ -1,6 +1,6 @@
 * * *
 **News**
-- Our paper is presented in VEE 2020! Check the presentation video on [video](https://youtu.be/JFJxpZVSJCc)!
+- Our paper is presented in VEE 2020. Check the presentation video on [video](https://youtu.be/JFJxpZVSJCc)!
 - Our libhermitMPK [paper](https://www.ssrg.ece.vt.edu/papers/vee20-mpk.pdf) is accepted at [VEE 2020](https://conf.researchr.org/home/vee-2020)!
 
 * * *
